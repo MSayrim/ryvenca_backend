@@ -27,7 +27,8 @@ import com.ryvenca.color.PaletteLibrary;
 public final class OutfitEngine {
 
     private static final int PAIR_BEAM = 40;
-    private static final int BASE_BEAM = 140;
+    private static final int BASE_BEAM = 70;
+    private static final int READY_PAIR_BEAM = 250;
     private static final double JITTER = 2.5;
     /** "Bununla ne gider?" lists the essential roles first, then alternatives and finishing touches. */
     private static final List<OutfitRole> PAIRING_ORDER = List.of(OutfitRole.TOP, OutfitRole.BOTTOM, OutfitRole.SHOES,
@@ -59,18 +60,21 @@ public final class OutfitEngine {
 
     public List<OutfitEvaluation> suggest(OutfitRequest request, int limit) {
         List<OutfitEvaluation> candidates = candidates(request, null, BASE_BEAM);
-        return diversify(candidates, request.seed(), limit, null);
+        return detailed(diversify(candidates, request.seed(), limit, null), request);
     }
 
-    /** Number of distinct base outfits (top+bottom/dress+shoes) scoring at least {@code threshold}. */
+    /**
+     * Number of distinct base outfits (top+bottom/dress+shoes) scoring at least {@code threshold},
+     * capped. Only the most promising top/bottom pairs are examined so large wardrobes stay fast.
+     */
     public int countReady(OutfitRequest request, int threshold, int cap) {
         Map<OutfitRole, List<WardrobeItem>> pools = pools(request, null);
         int count = 0;
-        for (List<WardrobeItem> base : bases(pools, Integer.MAX_VALUE)) {
+        for (List<WardrobeItem> base : bases(pools, READY_PAIR_BEAM)) {
             for (WardrobeItem shoes : pools.get(OutfitRole.SHOES)) {
                 List<WardrobeItem> items = new ArrayList<>(base);
                 items.add(shoes);
-                if (scorer.evaluate(items, request).score() >= threshold && ++count >= cap) {
+                if (scorer.evaluateFast(items, request).score() >= threshold && ++count >= cap) {
                     return count;
                 }
             }
@@ -81,7 +85,7 @@ public final class OutfitEngine {
     // ---- "Bununla ne gider?" ----------------------------------------------------------------------
 
     public Pairings pairings(WardrobeItem anchor, OutfitRequest request, int perRole, int outfitLimit) {
-        List<OutfitEvaluation> candidates = candidates(request, anchor, 220);
+        List<OutfitEvaluation> candidates = candidates(request, anchor, 120);
         Map<OutfitRole, Map<Long, Integer>> best = new EnumMap<>(OutfitRole.class);
         for (OutfitEvaluation e : candidates) {
             for (WardrobeItem item : e.items()) {
@@ -103,7 +107,7 @@ public final class OutfitEngine {
                     items.removeIf(i -> i.role() == role);
                     items.add(item);
                     if (OutfitScorer.structureProblem(items) == null) {
-                        int score = scorer.evaluate(items, request).score();
+                        int score = scorer.evaluateFast(items, request).score();
                         best.computeIfAbsent(role, r -> new HashMap<>()).merge(item.id(), score, Math::max);
                     }
                 }
@@ -122,7 +126,8 @@ public final class OutfitEngine {
                     .toList();
             matches.add(new Pairings.RoleMatches(role, ranked));
         }
-        return new Pairings(anchor, matches, diversify(candidates, request.seed(), outfitLimit, anchor));
+        return new Pairings(anchor, matches,
+                detailed(diversify(candidates, request.seed(), outfitLimit, anchor), request));
     }
 
     // ---- Similar outfits --------------------------------------------------------------------------
@@ -167,7 +172,11 @@ public final class OutfitEngine {
                 result.add(e);
             }
         }
-        return result;
+        return detailed(result, request);
+    }
+
+    private List<OutfitEvaluation> detailed(List<OutfitEvaluation> evaluations, OutfitRequest request) {
+        return evaluations.stream().map(e -> scorer.detailed(e, request)).toList();
     }
 
     // ---- Candidate search -------------------------------------------------------------------------
@@ -183,7 +192,7 @@ public final class OutfitEngine {
                 if (anchor != null && isLayer(anchor.role())) {
                     items.add(anchor);
                 }
-                scored.add(scorer.evaluate(items, request));
+                scored.add(scorer.evaluateFast(items, request));
             }
         }
         scored.sort(Comparator.comparingDouble(OutfitEvaluation::raw).reversed());
@@ -216,7 +225,7 @@ public final class OutfitEngine {
             for (WardrobeItem layer : pools.get(OutfitRole.OUTERWEAR)) {
                 List<WardrobeItem> items = new ArrayList<>(base.items());
                 items.add(layer);
-                options.add(scorer.evaluate(items, request));
+                options.add(scorer.evaluateFast(items, request));
             }
             options.sort(Comparator.comparingDouble(OutfitEvaluation::raw).reversed());
             for (int i = 0; i < Math.min(2, options.size()); i++) {
@@ -254,7 +263,7 @@ public final class OutfitEngine {
         for (WardrobeItem option : options) {
             List<WardrobeItem> items = new ArrayList<>(current.items());
             items.add(option);
-            OutfitEvaluation e = scorer.evaluate(items, request);
+            OutfitEvaluation e = scorer.evaluateFast(items, request);
             if (best == null || e.raw() > best.raw()) {
                 best = e;
             }

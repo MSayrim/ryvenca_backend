@@ -23,6 +23,14 @@ final class ColorHarmony {
     }
 
     static ColorAnalysis analyze(List<WardrobeItem> items, PaletteFit fit) {
+        return analyze(items, fit, true);
+    }
+
+    /**
+     * @param namePalette whether to look for a palette worth naming in the explanation; the search
+     *                    skips it because it does not influence the score
+     */
+    static ColorAnalysis analyze(List<WardrobeItem> items, PaletteFit fit, boolean namePalette) {
         // Distinct colors by visual area.
         Map<ColorName, Double> area = new LinkedHashMap<>();
         Map<ColorName, WardrobeItem> representative = new LinkedHashMap<>();
@@ -66,7 +74,7 @@ final class ColorHarmony {
         double bestEvidence = 0;
         for (int p = 0; p < fit.library().size(); p++) {
             palette = Math.max(palette, paletteScore(items, fit, p, core));
-            double evidence = paletteEvidence(core, fit, p);
+            double evidence = namePalette ? paletteEvidence(core, fit, p) : 0;
             if (evidence > bestEvidence) {
                 bestEvidence = evidence;
                 paletteIndex = p;

@@ -21,9 +21,23 @@ public final class OutfitScorer {
     }
 
     public OutfitEvaluation evaluate(List<WardrobeItem> pieces, OutfitRequest request) {
+        return evaluate(pieces, request, true);
+    }
+
+    /** Search-time evaluation: identical score, without the palette naming used only for explanations. */
+    OutfitEvaluation evaluateFast(List<WardrobeItem> pieces, OutfitRequest request) {
+        return evaluate(pieces, request, false);
+    }
+
+    /** Adds the explanation-only details to an evaluation produced by {@link #evaluateFast}. */
+    OutfitEvaluation detailed(OutfitEvaluation e, OutfitRequest request) {
+        return evaluate(e.items(), request, true);
+    }
+
+    private OutfitEvaluation evaluate(List<WardrobeItem> pieces, OutfitRequest request, boolean detailed) {
         List<WardrobeItem> items = new ArrayList<>(pieces);
         items.sort(Comparator.comparingInt((WardrobeItem i) -> i.role().ordinal()).thenComparingLong(WardrobeItem::id));
-        ColorAnalysis color = ColorHarmony.analyze(items, paletteFit);
+        ColorAnalysis color = ColorHarmony.analyze(items, paletteFit, detailed);
         CompatibilityAnalysis compatibility = GarmentCompatibility.analyze(items);
         SeasonAnalysis season = SeasonFit.analyze(items, request.season());
         OccasionAnalysis occasion = OccasionFit.analyze(items, request.occasion());
@@ -39,7 +53,7 @@ public final class OutfitScorer {
 
     /** Cheap pre-score for pruning top/bottom pairs (color + garment compatibility only). */
     double pairScore(List<WardrobeItem> pieces) {
-        return 0.6 * ColorHarmony.analyze(pieces, paletteFit).score() + 0.4 * GarmentCompatibility.analyze(pieces).score();
+        return 0.6 * ColorHarmony.analyze(pieces, paletteFit, false).score() + 0.4 * GarmentCompatibility.analyze(pieces).score();
     }
 
     /**

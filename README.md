@@ -111,5 +111,7 @@ after 24 hours. Media file names are random UUIDs served with long-lived cache h
 - `ImageProcessorTest`: all 8 EXIF orientations, thumbnails, normalization
 - `OutfitEngineTest`, `OutfitExplainerTest`: score ordering, season/occasion behavior, diversity,
   pairings, similar outfits, Turkish explanations
+- `EngineBench` (opt-in, `./mvnw test -Dtest=EngineBench -Dbench=true`): timings on a 200-piece
+  wardrobe (≈ 250 ms for suggestions once warm)
 - `ApiFlowIntegrationTest`: end-to-end over MockMvc (auth, upload, detection, manual override,
   suggestions, save, pairings, home, isolation between users, account deletion)
