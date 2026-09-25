@@ -25,6 +25,8 @@ import com.ryvenca.common.ApiException;
 import com.ryvenca.garment.Garment;
 import com.ryvenca.garment.GarmentMapper;
 import com.ryvenca.garment.GarmentService;
+import com.ryvenca.i18n.Localizer;
+import com.ryvenca.i18n.Texts;
 import com.ryvenca.outfit.OutfitDtos.MissingPiece;
 import com.ryvenca.outfit.OutfitDtos.OutfitDto;
 import com.ryvenca.outfit.OutfitDtos.OutfitItem;
@@ -61,17 +63,17 @@ public class OutfitService {
     private final GarmentMapper mapper;
     private final SavedOutfitRepository savedOutfits;
     private final PaletteLibrary palettes;
-    private final OutfitExplainer explainer;
+    private final Texts texts;
     private final Clock clock;
 
     public OutfitService(UserService users, GarmentService garments, GarmentMapper mapper,
-                         SavedOutfitRepository savedOutfits, PaletteLibrary palettes, Clock clock) {
+                         SavedOutfitRepository savedOutfits, PaletteLibrary palettes, Texts texts, Clock clock) {
         this.users = users;
         this.garments = garments;
         this.mapper = mapper;
         this.savedOutfits = savedOutfits;
         this.palettes = palettes;
-        this.explainer = new OutfitExplainer(palettes);
+        this.texts = texts;
         this.clock = clock;
     }
 
@@ -134,13 +136,13 @@ public class OutfitService {
         Context ctx = context(userId);
         Garment anchor = ctx.garments().get(garmentId);
         if (anchor == null) {
-            throw ApiException.notFound("Parça bulunamadı.");
+            throw ApiException.notFound("error.garment.notFound");
         }
         Readiness readiness = readiness(ctx.all());
         OutfitRequest request = request(ctx, season, occasion, null);
         Pairings pairings = ctx.engine().pairings(ctx.engine().item(garmentId), request, 6, 6);
         List<RoleMatches> matches = pairings.matches().stream()
-                .map(m -> new RoleMatches(m.role(), m.role().label(), m.items().stream()
+                .map(m -> new RoleMatches(m.role(), texts.current().label(m.role()), m.items().stream()
                         .map(match -> new PairingItem(mapper.toDto(ctx.garments().get(match.item().id())), match.score()))
                         .toList()))
                 .toList();
@@ -189,7 +191,7 @@ public class OutfitService {
     public void unsave(long userId, long savedId) {
         users.require(userId);
         SavedOutfit saved = savedOutfits.findByIdAndOwnerId(savedId, userId)
-                .orElseThrow(() -> ApiException.notFound("Kayıtlı kombin bulunamadı."));
+                .orElseThrow(() -> ApiException.notFound("error.savedOutfit.notFound"));
         savedOutfits.delete(saved);
     }
 
@@ -223,27 +225,27 @@ public class OutfitService {
         List<MissingPiece> missing = new ArrayList<>();
         if (dresses == 0) {
             if (tops == 0) {
-                missing.add(new MissingPiece(Category.TOP, "Kombin önerebilmemiz için en az bir üst (ya da bir elbise) ekle."));
+                missing.add(new MissingPiece(Category.TOP, texts.t("readiness.missing.TOP")));
             }
             if (bottoms == 0) {
-                missing.add(new MissingPiece(Category.BOTTOM, "Kombin önerebilmemiz için en az bir alt (ya da bir elbise) ekle."));
+                missing.add(new MissingPiece(Category.BOTTOM, texts.t("readiness.missing.BOTTOM")));
             }
         }
         if (shoes == 0) {
-            missing.add(new MissingPiece(Category.SHOES, "Kombin önerebilmemiz için en az bir ayakkabı ekle."));
+            missing.add(new MissingPiece(Category.SHOES, texts.t("readiness.missing.SHOES")));
         }
         return new Readiness(missing.isEmpty(), wardrobe.size(), RECOMMENDED_MINIMUM, missing);
     }
 
     private OutfitEvaluation evaluate(Context ctx, List<Long> ids, OutfitRequest request) {
         if (ids == null || ids.isEmpty()) {
-            throw ApiException.invalidField("items", "Kombin parçaları gerekli.");
+            throw ApiException.invalidField("items", "error.outfit.itemsRequired");
         }
         List<WardrobeItem> items = new ArrayList<>();
         for (Long id : ids.stream().distinct().toList()) {
             WardrobeItem item = id == null ? null : ctx.engine().item(id);
             if (item == null) {
-                throw ApiException.notFound("Kombindeki parçalardan biri bulunamadı.");
+                throw ApiException.notFound("error.outfit.itemNotFound");
             }
             items.add(item);
         }
@@ -271,13 +273,14 @@ public class OutfitService {
     }
 
     private OutfitDto toDto(OutfitEvaluation e, Context ctx, Set<String> usedTitles) {
-        OutfitStory story = explainer.explain(e, usedTitles);
+        Localizer l = texts.current();
+        OutfitStory story = new OutfitExplainer(l).explain(e, usedTitles);
         List<ScorePart> breakdown = List.of(
-                new ScorePart("COLOR", "Renk uyumu", 40, pct(e.color().score())),
-                new ScorePart("CATEGORY", "Parça uyumu", 25, pct(e.compatibility().score())),
-                new ScorePart("SEASON", "Mevsim", 15, pct(e.season().score())),
-                new ScorePart("OCCASION", "Kullanım alanı", 15, pct(e.occasion().score())),
-                new ScorePart("STYLE", "Stil", 5, pct(e.style().score())));
+                new ScorePart("COLOR", l.t("breakdown.COLOR"), 40, pct(e.color().score())),
+                new ScorePart("CATEGORY", l.t("breakdown.CATEGORY"), 25, pct(e.compatibility().score())),
+                new ScorePart("SEASON", l.t("breakdown.SEASON"), 15, pct(e.season().score())),
+                new ScorePart("OCCASION", l.t("breakdown.OCCASION"), 15, pct(e.occasion().score())),
+                new ScorePart("STYLE", l.t("breakdown.STYLE"), 5, pct(e.style().score())));
         List<OutfitItem> items = e.items().stream()
                 .map(i -> new OutfitItem(i.role(), mapper.toDto(ctx.garments().get(i.id()))))
                 .toList();
@@ -288,12 +291,13 @@ public class OutfitService {
                     .max((a, b) -> Double.compare(a.role().visualArea(), b.role().visualArea()))
                     .map(i -> ctx.garments().get(i.id()).getColorHex())
                     .orElse(color.hex());
-            palette.add(new PaletteColor(color, color.label(), hex));
+            palette.add(new PaletteColor(color, l.label(color), hex));
         }
         List<Reason> reasons = story.reasons().stream().map(r -> new Reason(r.code(), r.title(), r.text())).toList();
         Long savedId = ctx.savedKeys().get(e.key());
         return new OutfitDto(e.key(), story.title(), story.description(), e.score(), breakdown, e.style().style(),
-                e.style().style().label(), e.occasion().primary(), e.occasion().occasions(), e.occasion().venues(),
+                l.label(e.style().style()), e.occasion().primary(), e.occasion().occasions(),
+                e.occasion().venues().stream().map(l::label).toList(),
                 items, palette, story.paletteName(), reasons, savedId != null, savedId);
     }
 

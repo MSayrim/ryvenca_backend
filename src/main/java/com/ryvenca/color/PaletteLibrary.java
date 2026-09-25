@@ -16,7 +16,7 @@ import tools.jackson.databind.json.JsonMapper;
 @Component
 public class PaletteLibrary {
 
-    private record PaletteJson(String id, String name, List<String> colors) {
+    private record PaletteJson(String id, List<String> colors) {
     }
 
     private final List<ColorPalette> palettes;
@@ -45,7 +45,7 @@ public class PaletteLibrary {
         try (InputStream in = new ClassPathResource("palettes.json").getInputStream()) {
             PaletteJson[] raw = JsonMapper.builder().build().readValue(in, PaletteJson[].class);
             return java.util.Arrays.stream(raw)
-                    .map(p -> new ColorPalette(p.id(), p.name(), p.colors(),
+                    .map(p -> new ColorPalette(p.id(), p.colors(),
                             p.colors().stream().map(ColorScience::hexToLab).toList()))
                     .toList();
         } catch (IOException e) {

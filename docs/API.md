@@ -11,7 +11,28 @@ Error body (any 4xx/5xx):
 ```
 
 Error codes: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`,
-`INVALID_IMAGE`, `PAYLOAD_TOO_LARGE`, `INTERNAL_ERROR`. `message` is always user-presentable Turkish.
+`INVALID_IMAGE`, `PAYLOAD_TOO_LARGE`, `INTERNAL_ERROR`. `message` is always user-presentable, in the request language (see Languages).
+
+## Languages (i18n)
+
+Supported language codes (16): `tr` (Türkçe, product default), `en`, `zh` (Simplified Chinese), `hi`, `es`,
+`ar` (RTL), `fr`, `bn`, `pt`, `ru`, `id`, `ur` (RTL), `de`, `ja`, `vi`, `ko`.
+
+- Clients send `Accept-Language: <code>` (the UI language the user picked) on **every** request.
+  The server matches on the language subtag (`zh-CN` → `zh`, `pt-BR` → `pt`). No header → `tr`;
+  unsupported language → `en`.
+- Everything the server renders is localized for that language: all `label`/`pluralLabel`/`description`
+  fields in `/api/meta`, `Garment.displayName` (generated names such as "Beige blazer"), outfit `title`,
+  `description`, `reasons`, `venues`, `styleLabel`, `paletteName`, `breakdown[].label`, readiness messages,
+  pairing `label`s and every error `message` / `fieldErrors` value.
+  Clients must therefore include the language in the cache key of every server-rendered query and refetch
+  (or invalidate) when the language changes.
+- A user-chosen title of a saved outfit is returned as entered.
+- `GET /api/meta` also returns `"languages": [{ "code": "ar", "label": "العربية", "rtl": true }]` (labels are
+  native names, the same in every UI language).
+- `User.language` (`string | null`) stores the preferred UI language so it follows the user across devices;
+  set it with `PUT /api/me { "language": "ja" }`. Clients apply it after login when present; otherwise they
+  use the device/browser language when supported, else `en`.
 
 ## Enums
 
@@ -26,7 +47,7 @@ Error codes: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONF
 | Occasion | `DAILY`, `OFFICE`, `EVENING`, `WEEKEND`, `SPORT` |
 | OutfitRole | `OUTERWEAR`, `TOP`, `DRESS`, `BOTTOM`, `SHOES`, `BAG`, `ACCESSORY` |
 
-Turkish labels for every enum value come from `GET /api/meta`; clients must not hard-code labels.
+Localized labels for every enum value come from `GET /api/meta`; clients must not hard-code labels.
 
 ## Meta
 
@@ -34,6 +55,7 @@ Turkish labels for every enum value come from `GET /api/meta`; clients must not 
 
 ```json
 {
+  "languages": [{ "code": "tr", "label": "Türkçe", "rtl": false }],
   "wardrobeTypes": [{ "code": "WOMEN", "label": "Kadın" }],
   "styles": [{ "code": "SMART_CASUAL", "label": "Smart Casual", "description": "Rahat ama özenli" }],
   "categories": [
@@ -58,6 +80,7 @@ AuthResponse = { "token": "jwt", "expiresAt": "2026-10-25T10:00:00Z", "user": Us
 User = {
   "id": 1, "email": "a@b.com", "displayName": "Ayşe",
   "wardrobeType": "WOMEN" | null,
+  "language": "tr" | null,
   "stylePreferences": ["MINIMAL", "CLASSIC"],
   "onboardingCompleted": false,
   "createdAt": "..."
@@ -65,7 +88,7 @@ User = {
 ```
 
 `GET /api/me` → `User`
-`PUT /api/me` `{ "displayName"?, "wardrobeType"?, "stylePreferences"?, "onboardingCompleted"? }` → `User` (only non-null fields are applied)
+`PUT /api/me` `{ "displayName"?, "wardrobeType"?, "stylePreferences"?, "onboardingCompleted"?, "language"? }` → `User` (only non-null fields are applied)
 `DELETE /api/me` → `204` (deletes account, garments, images, saved outfits)
 
 ## Images & color detection

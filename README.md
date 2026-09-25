@@ -37,12 +37,39 @@ RYVENCA_JWT_SECRET=$(openssl rand -base64 48) docker compose up --build
 | `RYVENCA_PUBLIC_BASE_URL` | derived from request | Absolute base for media URLs behind a proxy/CDN |
 | `PORT` | `8080` | HTTP port |
 
+## Languages (i18n)
+
+The API speaks 16 languages: Turkish (product default) plus the 15 most spoken languages: `tr en zh hi es
+ar fr bn pt ru id ur de ja vi ko` (Arabic and Urdu are RTL on the clients).
+
+- The request language comes from `Accept-Language` (`LanguageLocaleResolver`). Matching is on the primary
+  subtag. No header means Turkish; an unsupported language means English.
+- Every server-rendered text comes from `src/main/resources/i18n/messages_<code>.properties`
+  (`messages.properties` = English, also the fallback). This covers enum labels in `/api/meta`, generated
+  garment names, outfit titles, "why it works" explanations, venues, palette names, readiness hints and
+  error/validation messages. Messages are read raw, so apostrophes need no escaping, and `{0}`, `{1}`
+  placeholders are filled by `Localizer`.
+- Explanations are complete sentence templates (`explain.*`, `title.*`). Per-language grammar lives in
+  the same files:
+  - `grammar.phrase`: how a color and a garment form a phrase, e.g. "beige blazer", "Blazer in Beige",
+    "ベージュのブレザー".
+  - `grammar.list.*`: how lists are joined.
+  - `grammar.sentences`: how sentences are joined.
+  - `grammar.lowercase`: whether labels are lowercased mid-sentence.
+  - `garment.generatedName`: the auto name of a garment.
+- `User.language` stores the preferred UI language (`PUT /api/me {"language": "ja"}`).
+- `MessageFilesTest` fails if any language file misses a key or changes a key's placeholders.
+
+To add a language, add it to `Language`, create `messages_<code>.properties` with the same keys, and run the
+tests.
+
 ## Architecture
 
 ```
 com.ryvenca
 ├── auth        register/login, JWT issuing (Nimbus, HS256)
 ├── user        profile, style preferences, onboarding, account deletion
+├── i18n        supported languages, Accept-Language resolution, Localizer (templates + grammar)
 ├── catalog     domain enums: Category, Subcategory (formality, fabric feel, warmth, default
 │               seasons/occasions, style affinities), Season, Occasion, StylePreference, /api/meta
 ├── color       CIELAB + CIEDE2000, 17 standard color classes, dominant color detection,

@@ -60,8 +60,8 @@ public final class OutfitDtos {
     }
 
     public record SaveOutfitRequest(
-            @NotEmpty(message = "Kombin parçaları gerekli") @Size(max = 10, message = "Kombin en fazla 10 parça içerebilir")
+            @NotEmpty(message = "{validation.outfitItems.required}") @Size(max = 10, message = "{validation.outfitItems.size}")
             List<Long> garmentIds,
-            @Size(max = 80, message = "Başlık en fazla 80 karakter olabilir") String title) {
+            @Size(max = 80, message = "{validation.title.size}") String title) {
     }
 }

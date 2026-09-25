@@ -236,6 +236,41 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void speaksTheRequestLanguage() throws Exception {
+        mvc.perform(get("/api/meta").header("Accept-Language", "en-US,en;q=0.9"))
+                .andExpect(jsonPath("$.categories[0].label").value("Top"))
+                .andExpect(jsonPath("$.colors[4].label").value("Beige"))
+                .andExpect(jsonPath("$.languages", hasSize(16)))
+                .andExpect(jsonPath("$.languages[5].code").value("ar"))
+                .andExpect(jsonPath("$.languages[5].rtl").value(true));
+        mvc.perform(get("/api/me").header("Accept-Language", "en"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("Please sign in."));
+        mvc.perform(post("/api/auth/register").header("Accept-Language", "en").contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"email\":\"bad\",\"password\":\"password123\",\"displayName\":\"X\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.email").value("Enter a valid email address"));
+
+        String token = register("lang@example.com", "Lang");
+        mvc.perform(auth(put("/api/me"), token).contentType(MediaType.APPLICATION_JSON).content("{\"language\":\"ja-JP\"}"))
+                .andExpect(jsonPath("$.language").value("ja"));
+        mvc.perform(auth(put("/api/me"), token).contentType(MediaType.APPLICATION_JSON).content("{\"language\":\"xx\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.fieldErrors.language").exists());
+
+        String upload = upload(token, "#F2EEE8", "#C8B596");
+        long blazer = createGarment(token, JsonPath.read(upload, "$.imageId"), "OUTERWEAR", "BLAZER", "BEIGE", null);
+        mvc.perform(auth(get("/api/garments/" + blazer), token).header("Accept-Language", "en"))
+                .andExpect(jsonPath("$.displayName").value("Beige blazer"));
+        mvc.perform(auth(get("/api/garments/" + blazer), token))
+                .andExpect(jsonPath("$.displayName").value("Bej Blazer"));
+        mvc.perform(auth(get("/api/garments"), token).header("Accept-Language", "en").param("q", "blazer"))
+                .andExpect(jsonPath("$", hasSize(1)));
+        mvc.perform(auth(get("/api/outfits/suggestions"), token).header("Accept-Language", "en"))
+                .andExpect(jsonPath("$.readiness.missing[0].message").value("Add at least one top (or a dress) so we can suggest outfits."));
+    }
+
+    @Test
     void rejectsNonImageUploads() throws Exception {
         String token = register("zeynep@example.com", "Zeynep");
         MockMultipartFile file = new MockMultipartFile("file", "x.txt", "text/plain", "hello".getBytes());

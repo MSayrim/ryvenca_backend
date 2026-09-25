@@ -1,9 +1,9 @@
 package com.ryvenca.catalog;
 
-/** Enum with a Turkish display label. */
+/** Enum whose display label is localized through the message files ({@link #labelKey()}). */
 public interface Labeled {
 
     String name();
 
-    String label();
+    String labelKey();
 }

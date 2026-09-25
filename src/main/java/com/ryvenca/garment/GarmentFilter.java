@@ -6,12 +6,12 @@ import com.ryvenca.catalog.Category;
 import com.ryvenca.catalog.Occasion;
 import com.ryvenca.catalog.Season;
 import com.ryvenca.color.ColorName;
-import com.ryvenca.common.TurkishText;
+import com.ryvenca.i18n.Localizer;
 
 public record GarmentFilter(List<Category> categories, List<ColorName> colors, List<Season> seasons,
                             List<Occasion> occasions, Boolean favorite, String query) {
 
-    public boolean matches(Garment g) {
+    public boolean matches(Garment g, Localizer l) {
         if (notEmpty(categories) && !categories.contains(g.getCategory())) {
             return false;
         }
@@ -28,9 +28,9 @@ public record GarmentFilter(List<Category> categories, List<ColorName> colors, L
             return false;
         }
         if (query != null && !query.isBlank()) {
-            String q = TurkishText.lower(query.trim());
-            String haystack = TurkishText.lower(String.join(" ", GarmentMapper.displayName(g),
-                    g.getSubcategory().label(), g.getCategory().label(), g.getColor().label()));
+            String q = query.trim().toLowerCase(l.locale());
+            String haystack = String.join(" ", GarmentMapper.displayName(g, l), l.label(g.getSubcategory()),
+                    l.label(g.getCategory()), l.label(g.getColor())).toLowerCase(l.locale());
             return haystack.contains(q);
         }
         return true;

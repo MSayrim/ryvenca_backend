@@ -3,20 +3,11 @@ package com.ryvenca.catalog;
 import java.time.LocalDate;
 
 public enum Season implements Labeled {
-    SPRING("İlkbahar"),
-    SUMMER("Yaz"),
-    AUTUMN("Sonbahar"),
-    WINTER("Kış");
-
-    private final String label;
-
-    Season(String label) {
-        this.label = label;
-    }
+    SPRING, SUMMER, AUTUMN, WINTER;
 
     @Override
-    public String label() {
-        return label;
+    public String labelKey() {
+        return "season." + name();
     }
 
     /** Northern hemisphere meteorological seasons. */

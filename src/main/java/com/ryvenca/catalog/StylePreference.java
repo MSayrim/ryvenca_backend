@@ -1,28 +1,14 @@
 package com.ryvenca.catalog;
 
 public enum StylePreference implements Labeled {
-    CASUAL("Casual", "Rahat ve zahmetsiz günlük parçalar"),
-    SMART_CASUAL("Smart Casual", "Rahat ama özenli, şık dokunuşlar"),
-    MINIMAL("Minimal", "Sade kesimler, nötr renkler"),
-    CLASSIC("Classic", "Zamansız, klasik parçalar"),
-    STREETWEAR("Streetwear", "Şehirli, rahat ve iddialı"),
-    BUSINESS("Business", "Profesyonel ve resmi görünüm"),
-    SPORT("Sport", "Konforlu ve hareketli");
-
-    private final String label;
-    private final String description;
-
-    StylePreference(String label, String description) {
-        this.label = label;
-        this.description = description;
-    }
+    CASUAL, SMART_CASUAL, MINIMAL, CLASSIC, STREETWEAR, BUSINESS, SPORT;
 
     @Override
-    public String label() {
-        return label;
+    public String labelKey() {
+        return "style." + name();
     }
 
-    public String description() {
-        return description;
+    public String descriptionKey() {
+        return "style." + name() + ".description";
     }
 }

@@ -47,13 +47,13 @@ public class ImageService {
     @Transactional
     public ImageUpload upload(long ownerId, MultipartFile file) {
         if (file == null || file.isEmpty()) {
-            throw new ApiException(ErrorCode.INVALID_IMAGE, "Lütfen bir fotoğraf seç.");
+            throw new ApiException(ErrorCode.INVALID_IMAGE, "error.image.missing");
         }
         byte[] bytes;
         try {
             bytes = file.getBytes();
         } catch (IOException e) {
-            throw new ApiException(ErrorCode.INVALID_IMAGE, "Fotoğraf yüklenemedi. Lütfen tekrar dene.");
+            throw new ApiException(ErrorCode.INVALID_IMAGE, "error.image.uploadFailed");
         }
         BufferedImage decoded = processor.decode(bytes);
         ColorDetection detection = detector.detect(decoded);
@@ -83,7 +83,7 @@ public class ImageService {
     @Transactional(readOnly = true)
     public ImageAsset requireOwned(long ownerId, UUID imageId) {
         return images.findByIdAndOwnerId(imageId, ownerId)
-                .orElseThrow(() -> ApiException.invalidField("imageId", "Fotoğraf bulunamadı. Lütfen tekrar yükle."));
+                .orElseThrow(() -> ApiException.invalidField("imageId", "error.image.notFound"));
     }
 
     public String url(ImageAsset asset) {

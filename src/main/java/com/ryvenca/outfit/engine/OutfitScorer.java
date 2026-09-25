@@ -71,22 +71,22 @@ public final class OutfitScorer {
         long dresses = count(items, OutfitRole.DRESS);
         long shoes = count(items, OutfitRole.SHOES);
         if (shoes != 1) {
-            return "Bir kombinde tam olarak bir ayakkabı olmalı.";
+            return "error.outfit.oneShoes";
         }
         if (dresses > 1 || tops > 1 || bottoms > 1) {
-            return "Bir kombinde her kategoriden en fazla bir parça olabilir.";
+            return "error.outfit.onePerCategory";
         }
         if (dresses == 1 && (tops > 0 || bottoms > 0)) {
-            return "Elbise ile ayrıca üst ve alt seçilemez.";
+            return "error.outfit.dressWithSeparates";
         }
         if (dresses == 0 && (tops != 1 || bottoms != 1)) {
-            return "Bir kombin bir üst ve bir alt (ya da bir elbise) içermeli.";
+            return "error.outfit.needsTopAndBottom";
         }
         if (count(items, OutfitRole.OUTERWEAR) > 1 || count(items, OutfitRole.BAG) > 1) {
-            return "Bir kombinde en fazla bir dış giyim ve bir çanta olabilir.";
+            return "error.outfit.oneLayerOneBag";
         }
         if (count(items, OutfitRole.ACCESSORY) > 2) {
-            return "Bir kombinde en fazla iki aksesuar olabilir.";
+            return "error.outfit.twoAccessories";
         }
         return null;
     }

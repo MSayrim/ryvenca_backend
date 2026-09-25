@@ -32,8 +32,8 @@ public class AuthService {
     public AuthResponse register(RegisterRequest request) {
         String email = normalize(request.email());
         if (users.existsByEmail(email)) {
-            throw new ApiException(ErrorCode.CONFLICT, "Bu e-posta ile kayıtlı bir hesap zaten var.",
-                    java.util.Map.of("email", "Bu e-posta zaten kullanılıyor"));
+            throw new ApiException(ErrorCode.CONFLICT, "error.auth.emailTaken",
+                    java.util.Map.of("email", "validation.email.taken"));
         }
         User user = users.save(new User(email, passwordEncoder.encode(request.password()), request.displayName().trim()));
         return respond(user);
@@ -43,7 +43,7 @@ public class AuthService {
     public AuthResponse login(LoginRequest request) {
         User user = users.findByEmail(normalize(request.email()))
                 .filter(u -> passwordEncoder.matches(request.password(), u.getPasswordHash()))
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "E-posta veya şifre hatalı."));
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "error.auth.badCredentials"));
         return respond(user);
     }
 

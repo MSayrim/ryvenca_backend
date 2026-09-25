@@ -1,25 +1,23 @@
 package com.ryvenca.catalog;
 
 public enum Occasion implements Labeled {
-    DAILY("Günlük", 2.0, 3.5),
-    OFFICE("Ofis", 3.5, 5.0),
-    EVENING("Akşam", 3.4, 5.0),
-    WEEKEND("Hafta Sonu", 1.5, 3.0),
-    SPORT("Spor", 1.0, 1.8);
+    DAILY(2.0, 3.5),
+    OFFICE(3.5, 5.0),
+    EVENING(3.4, 5.0),
+    WEEKEND(1.5, 3.0),
+    SPORT(1.0, 1.8);
 
-    private final String label;
     private final double minFormality;
     private final double maxFormality;
 
-    Occasion(String label, double minFormality, double maxFormality) {
-        this.label = label;
+    Occasion(double minFormality, double maxFormality) {
         this.minFormality = minFormality;
         this.maxFormality = maxFormality;
     }
 
     @Override
-    public String label() {
-        return label;
+    public String labelKey() {
+        return "occasion." + name();
     }
 
     public double minFormality() {

@@ -19,14 +19,25 @@ import org.springframework.web.multipart.MaxUploadSizeExceededException;
 import org.springframework.web.multipart.MultipartException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
+import com.ryvenca.i18n.Texts;
+
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
+    private final Texts texts;
+
+    public GlobalExceptionHandler(Texts texts) {
+        this.texts = texts;
+    }
+
     @ExceptionHandler(ApiException.class)
     ResponseEntity<ErrorResponse> handleApi(ApiException ex) {
-        return respond(ex.code(), ex.getMessage(), ex.fieldErrors());
+        Map<String, String> fields = new LinkedHashMap<>();
+        ex.fieldErrorKeys().forEach((field, key) -> fields.put(field, texts.t(key)));
+        return ResponseEntity.status(ex.code().status())
+                .body(ErrorResponse.of(ex.code(), texts.t(ex.messageKey()), fields));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -35,48 +46,49 @@ public class GlobalExceptionHandler {
         for (FieldError error : ex.getBindingResult().getFieldErrors()) {
             fields.putIfAbsent(error.getField(), error.getDefaultMessage());
         }
-        String message = fields.isEmpty() ? "Gönderilen bilgiler geçersiz." : fields.values().iterator().next();
-        return respond(ErrorCode.VALIDATION_ERROR, message, fields);
+        String message = fields.isEmpty() ? texts.t("error.validation") : fields.values().iterator().next();
+        return ResponseEntity.status(ErrorCode.VALIDATION_ERROR.status())
+                .body(ErrorResponse.of(ErrorCode.VALIDATION_ERROR, message, fields));
     }
 
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
             MissingServletRequestParameterException.class})
     ResponseEntity<ErrorResponse> handleBadRequest(Exception ex) {
-        return respond(ErrorCode.VALIDATION_ERROR, "İstek okunamadı. Lütfen bilgileri kontrol et.", Map.of());
+        return respond(ErrorCode.VALIDATION_ERROR, "error.badRequest", Map.of());
     }
 
     @ExceptionHandler(MaxUploadSizeExceededException.class)
     ResponseEntity<ErrorResponse> handleTooLarge(MaxUploadSizeExceededException ex) {
-        return respond(ErrorCode.PAYLOAD_TOO_LARGE, "Fotoğraf çok büyük. En fazla 15 MB yükleyebilirsin.", Map.of());
+        return respond(ErrorCode.PAYLOAD_TOO_LARGE, "error.image.tooLarge", Map.of());
     }
 
     @ExceptionHandler(MultipartException.class)
     ResponseEntity<ErrorResponse> handleMultipart(MultipartException ex) {
-        return respond(ErrorCode.INVALID_IMAGE, "Fotoğraf yüklenemedi. Lütfen tekrar dene.", Map.of());
+        return respond(ErrorCode.INVALID_IMAGE, "error.image.uploadFailed", Map.of());
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     ResponseEntity<ErrorResponse> handleAccessDenied(AccessDeniedException ex) {
-        return respond(ErrorCode.FORBIDDEN, "Bu işlem için yetkin yok.", Map.of());
+        return respond(ErrorCode.FORBIDDEN, "error.forbidden", Map.of());
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
     ResponseEntity<ErrorResponse> handleMethod(HttpRequestMethodNotSupportedException ex) {
-        return respond(ErrorCode.NOT_FOUND, "İstenen kaynak bulunamadı.", Map.of());
+        return respond(ErrorCode.NOT_FOUND, "error.notFound", Map.of());
     }
 
     @ExceptionHandler(NoResourceFoundException.class)
     ResponseEntity<ErrorResponse> handleNoResource(NoResourceFoundException ex) {
-        return respond(ErrorCode.NOT_FOUND, "İstenen kaynak bulunamadı.", Map.of());
+        return respond(ErrorCode.NOT_FOUND, "error.notFound", Map.of());
     }
 
     @ExceptionHandler(Exception.class)
     ResponseEntity<ErrorResponse> handleUnexpected(Exception ex) {
         log.error("Unexpected error", ex);
-        return respond(ErrorCode.INTERNAL_ERROR, "Beklenmeyen bir hata oluştu. Lütfen tekrar dene.", Map.of());
+        return respond(ErrorCode.INTERNAL_ERROR, "error.internal", Map.of());
     }
 
-    private ResponseEntity<ErrorResponse> respond(ErrorCode code, String message, Map<String, String> fields) {
-        return ResponseEntity.status(code.status()).body(ErrorResponse.of(code, message, fields));
+    private ResponseEntity<ErrorResponse> respond(ErrorCode code, String messageKey, Map<String, String> fields) {
+        return ResponseEntity.status(code.status()).body(ErrorResponse.of(code, texts.t(messageKey), fields));
     }
 }

@@ -1,136 +1,120 @@
 package com.ryvenca.outfit.engine;
 
-import static com.ryvenca.common.TurkishText.capitalize;
-import static com.ryvenca.common.TurkishText.joinAnd;
-import static com.ryvenca.common.TurkishText.lower;
-
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 
 import com.ryvenca.catalog.Occasion;
 import com.ryvenca.catalog.Season;
 import com.ryvenca.catalog.StylePreference;
-import com.ryvenca.catalog.Texture;
 import com.ryvenca.color.ColorName;
-import com.ryvenca.color.PaletteLibrary;
+import com.ryvenca.i18n.Localizer;
 import com.ryvenca.outfit.engine.OutfitStory.Reason;
 
-/** Turns the numeric analyses into Turkish copy: title, description and the "Neden Uyumlu?" cards. */
+/**
+ * Turns the numeric analyses into localized copy: title, description and the "Neden Uyumlu?"
+ * (why it works) cards. Every sentence is a full template in the message files
+ * ({@code explain.*}, {@code title.*}); only garment phrases and color lists are filled in.
+ */
 public final class OutfitExplainer {
 
-    private final PaletteLibrary palettes;
+    private final Localizer l;
 
-    public OutfitExplainer(PaletteLibrary palettes) {
-        this.palettes = palettes;
+    public OutfitExplainer(Localizer localizer) {
+        this.l = localizer;
     }
 
     public OutfitStory explain(OutfitEvaluation e) {
-        return explain(e, java.util.Set.of());
+        return explain(e, Set.of());
     }
 
     /**
      * @param usedTitles titles already shown in the same list; another fitting variant is chosen when
      *                   possible so two cards next to each other do not carry the same name.
      */
-    public OutfitStory explain(OutfitEvaluation e, java.util.Set<String> usedTitles) {
-        String paletteName = e.color().paletteMatched() ? palettes.get(e.color().paletteIndex()).name() : null;
+    public OutfitStory explain(OutfitEvaluation e, Set<String> usedTitles) {
+        String paletteName = e.color().paletteMatched() ? l.t("palette." + e.color().paletteId()) : null;
         List<Reason> reasons = new ArrayList<>();
-        reasons.add(new Reason("COLOR", "Renk Dengesi", colorText(e.color(), paletteName)));
-        reasons.add(new Reason("TEXTURE", "Doku Uyumu", textureText(e)));
-        reasons.add(new Reason("OCCASION", "Kullanım Alanı", occasionText(e.occasion())));
+        reasons.add(new Reason("COLOR", l.t("reason.COLOR"), colorText(e.color(), paletteName)));
+        reasons.add(new Reason("TEXTURE", l.t("reason.TEXTURE"), textureText(e)));
+        reasons.add(new Reason("OCCASION", l.t("reason.OCCASION"), occasionText(e.occasion())));
         String season = seasonText(e.season());
         if (season != null) {
-            reasons.add(new Reason("SEASON", "Mevsim", season));
+            reasons.add(new Reason("SEASON", l.t("reason.SEASON"), season));
         }
-        List<String[]> options = titles(e);
-        String[] title = options.stream().filter(t -> !usedTitles.contains(t[0])).findFirst().orElse(options.getFirst());
-        return new OutfitStory(title[0], title[1], List.copyOf(reasons), paletteName);
+        List<String> ids = titleIds(e);
+        String id = ids.stream().filter(t -> !usedTitles.contains(l.t("title." + t))).findFirst().orElse(ids.getFirst());
+        return new OutfitStory(l.t("title." + id), l.t("title." + id + ".description"), List.copyOf(reasons), paletteName);
     }
 
-    // ---- Renk Dengesi -------------------------------------------------------------------------
+    // ---- Renk Dengesi (color balance) -----------------------------------------------------------
 
-    static String colorText(ColorAnalysis c, String paletteName) {
-        List<String> all = labels(c.colors());
+    String colorText(ColorAnalysis c, String paletteName) {
+        String all = colors(c.colors());
         String text = switch (c.colorCase()) {
-            case SINGLE_COLOR -> "Baştan aşağı " + lower(c.colors().getFirst().label())
-                    + ": tek renkle giyinmek silueti uzatır ve görünümü bütünlüklü kılar.";
-            case MONOCHROME -> capitalize(joinAnd(all))
-                    + " net bir kontrastla grafik ve modern bir monokrom görünüm yaratıyor.";
-            case TONAL -> capitalize(joinAnd(all))
-                    + " aynı renk ailesinin farklı tonları; ton sür ton katmanlar sofistike bir derinlik katıyor.";
-            case ALL_NEUTRAL -> capitalize(joinAnd(all))
-                    + ": nötr tonlar sakin ve dengeli bir palet oluşturuyor; zamansız ve kolay bir uyum.";
+            case SINGLE_COLOR -> l.t("explain.color.singleColor", l.inline(c.colors().getFirst()));
+            case MONOCHROME -> l.t("explain.color.monochrome", all);
+            case TONAL -> l.t("explain.color.tonal", all);
+            case ALL_NEUTRAL -> l.t("explain.color.allNeutral", all);
             case SINGLE_ACCENT -> c.neutrals().isEmpty()
-                    ? capitalize(lower(c.accents().getFirst().label())) + " kombinin odak noktası; diğer parçalar onu sade bir şekilde dengeliyor."
-                    : capitalize(joinAnd(labels(c.neutrals()))) + " nötr bir taban kuruyor; "
-                            + lower(c.accents().getFirst().label()) + " ise kombine kontrollü bir canlılık katıyor.";
-            case SOFT_PAIR -> capitalize(joinAnd(labels(c.accents())))
-                    + " yumuşak tonlarıyla ferah ve hafif bir uyum yakalıyor.";
-            case ANALOGOUS -> capitalize(joinAnd(labels(c.accents())))
-                    + " renk çemberinde komşu tonlar; birlikte yumuşak ve uyumlu bir geçiş sağlıyor.";
-            case COMPLEMENTARY -> capitalize(joinAnd(labels(c.accents())))
-                    + " birbirini tamamlayan zıt renkler; cesur ama dengeli bir kontrast oluşturuyor.";
-            case DISCORDANT -> capitalize(joinAnd(labels(c.accents())))
-                    + " birlikte biraz iddialı duruyor; nötr bir parça bu ikiliyi dengeleyebilir.";
-            case BUSY -> capitalize(joinAnd(all))
-                    + " bir arada oldukça hareketli; parçalardan birini nötr bir tonla değiştirmek uyumu artırır.";
+                    ? l.t("explain.color.accentOnly", l.inline(c.accents().getFirst()))
+                    : l.t("explain.color.singleAccent", colors(c.neutrals()), l.inline(c.accents().getFirst()));
+            case SOFT_PAIR -> l.t("explain.color.softPair", colors(c.accents()));
+            case ANALOGOUS -> l.t("explain.color.analogous", colors(c.accents()));
+            case COMPLEMENTARY -> l.t("explain.color.complementary", colors(c.accents()));
+            case DISCORDANT -> l.t("explain.color.discordant", colors(c.accents()));
+            case BUSY -> l.t("explain.color.busy", all);
         };
-        StringBuilder sb = new StringBuilder(text);
+        text = l.capitalize(text);
         if (paletteName != null) {
-            sb.append(" Renkler \"").append(paletteName).append("\" paletimize çok yakın.");
+            text = l.then(text, l.t("explain.color.palette", paletteName));
         }
         if (c.accentEcho()) {
-            sb.append(" Aynı rengin iki parçada tekrar etmesi kombini bir arada tutuyor.");
+            text = l.then(text, l.t("explain.color.accentEcho"));
         } else if (c.bagShoeEcho()) {
-            sb.append(" Çanta ile ayakkabının uyumu görünümü tamamlıyor.");
+            text = l.then(text, l.t("explain.color.bagShoeEcho"));
         }
         if (c.nearClash()) {
-            sb.append(" Üst ve alt parçanın tonları birbirine çok yakın ama aynı değil; daha net bir kontrast daha iyi olabilir.");
+            text = l.then(text, l.t("explain.color.nearClash"));
         }
         if (c.patternClash()) {
-            sb.append(" İki desenli parça aynı anda dikkat çekmek için yarışıyor.");
+            text = l.then(text, l.t("explain.color.patternClash"));
         }
-        return sb.toString();
+        return text;
     }
 
-    // ---- Doku Uyumu ---------------------------------------------------------------------------
+    // ---- Doku Uyumu (texture harmony) -----------------------------------------------------------
 
-    static String textureText(OutfitEvaluation e) {
+    String textureText(OutfitEvaluation e) {
         CompatibilityAnalysis c = e.compatibility();
         List<WardrobeItem> p = c.pairingItems();
+        String textures = l.join(c.textures().stream().map(l::inline).toList());
         String main;
         if (c.pairing() != null) {
             main = switch (c.pairing()) {
-                case SUIT -> capitalize(p.get(0).phrase()) + " ile " + p.get(1).phrase()
-                        + " takım etkisi yaratarak güçlü ve derli toplu bir siluet kuruyor.";
-                case SMART_MIX -> capitalize(p.get(0).phrase()) + " ile " + p.get(1).phrase()
-                        + ", klasik ile rahatı dengeleyen modern bir ikili.";
-                case EDGY_CONTRAST -> capitalize(p.get(0).phrase()) + " ile " + p.get(1).phrase()
-                        + ": sert deri ile akışkan kumaşın kontrastı kombine karakter katıyor.";
-                case CLASSIC_BASE -> capitalize(p.get(0).phrase()) + " ile " + p.get(1).phrase()
-                        + " klasik ve güvenilir bir temel oluşturuyor.";
-                case KNIT_CONTRAST -> capitalize(p.get(0).phrase()) + " ile " + p.get(1).phrase()
-                        + ": yumuşak triko ile düzgün kesimli alt parça birbirini dengeliyor.";
-                case EASY_CLASSIC -> "T-shirt, jean ve sneaker; zahmetsiz ama her zaman işe yarayan klasik bir üçlü.";
-                case TRENCH -> capitalize(p.get(0).phrase())
-                        + " kombine zamansız ve derli toplu bir dış katman ekliyor.";
+                case SUIT -> l.t("explain.texture.suit", phrase(p.get(0)), phrase(p.get(1)));
+                case SMART_MIX -> l.t("explain.texture.smartMix", phrase(p.get(0)), phrase(p.get(1)));
+                case EDGY_CONTRAST -> l.t("explain.texture.edgyContrast", phrase(p.get(0)), phrase(p.get(1)));
+                case CLASSIC_BASE -> l.t("explain.texture.classicBase", phrase(p.get(0)), phrase(p.get(1)));
+                case KNIT_CONTRAST -> l.t("explain.texture.knitContrast", phrase(p.get(0)), phrase(p.get(1)));
+                case EASY_CLASSIC -> l.t("explain.texture.easyClassic");
+                case TRENCH -> l.t("explain.texture.trench", phrase(p.get(0)));
             };
+            main = l.capitalize(main);
             if (c.textures().size() >= 2 && c.pairing() != CompatibilityAnalysis.Pairing.EASY_CLASSIC) {
-                main += " Farklı dokular (" + joinAnd(textureLabels(c.textures())) + ") görünüme derinlik katıyor.";
+                main = l.then(main, l.t("explain.texture.variety", textures));
             }
         } else if (c.textures().size() >= 2) {
             List<String> names = e.items().stream()
                     .filter(i -> i.role().isCore() && i.subcategory().texture() != null)
-                    .map(i -> lower(i.subcategory().label()))
+                    .map(i -> l.inline(i.subcategory()))
                     .distinct()
                     .toList();
-            main = capitalize(joinAnd(names)) + " farklı dokularıyla (" + joinAnd(textureLabels(c.textures()))
-                    + ") zengin ve katmanlı bir görünüm sunuyor.";
+            main = l.capitalize(l.t("explain.texture.mixed", l.join(names), textures));
         } else if (c.textures().size() == 1) {
-            main = "Parçaların benzer " + c.textures().getFirst().label()
-                    + " dokusu sade ve bütünlüklü bir görünüm sağlıyor.";
+            main = l.capitalize(l.t("explain.texture.single", textures));
         } else {
-            main = "Parçaların kesimleri ve dokuları birbiriyle uyumlu, derli toplu bir görünüm sağlıyor.";
+            main = l.capitalize(l.t("explain.texture.neutral"));
         }
         if (!c.mismatch().isEmpty()) {
             WardrobeItem formal = c.mismatch().get(0);
@@ -142,157 +126,102 @@ public final class OutfitExplainer {
             WardrobeItem odd = Math.abs(formalGap - casualGap) < 0.3
                     ? (formal.role().visualArea() <= casual.role().visualArea() ? formal : casual)
                     : (formalGap > casualGap ? formal : casual);
-            main += " " + capitalize(formal.phrase()) + " ile " + casual.phrase()
-                    + " arasındaki resmiyet farkı belirgin; daha uyumlu bir " + lower(odd.role().label())
-                    + " seçimi kombini güçlendirebilir.";
+            main = l.then(main, l.capitalize(l.t("explain.texture.mismatch", phrase(formal), phrase(casual),
+                    l.inline(odd.role()))));
         } else if (!c.highLow().isEmpty() && c.pairing() != CompatibilityAnalysis.Pairing.SMART_MIX) {
-            main += " " + capitalize(c.highLow().get(0).phrase()) + " ile " + c.highLow().get(1).phrase()
-                    + " şık ve rahatı dengeleyen modern bir karışım oluşturuyor.";
+            main = l.then(main, l.capitalize(l.t("explain.texture.highLow", phrase(c.highLow().get(0)),
+                    phrase(c.highLow().get(1)))));
         }
         return main;
     }
 
-    private static List<String> textureLabels(List<Texture> textures) {
-        return textures.stream().map(Texture::label).toList();
-    }
+    // ---- Kullanım Alanı (occasion) --------------------------------------------------------------
 
-    // ---- Kullanım Alanı -----------------------------------------------------------------------
-
-    static String occasionText(OccasionAnalysis o) {
-        StringBuilder sb = new StringBuilder();
+    String occasionText(OccasionAnalysis o) {
+        String text = "";
         Occasion requested = o.requested();
         if (requested != null && o.scores().get(requested) < 0.6) {
             boolean tooCasual = o.formality() < requested.minFormality();
-            sb.append(capitalize(occasionWord(requested))).append(" için biraz ")
-                    .append(tooCasual ? "rahat" : "resmi").append(" kalabilir. ");
+            text = l.capitalize(l.t(tooCasual ? "explain.occasion.tooCasual" : "explain.occasion.tooFormal",
+                    l.inline(requested)));
         }
         List<Occasion> occasions = o.occasions();
-        if (occasions.size() >= 2) {
-            sb.append("Hem ").append(occasionWord(occasions.get(0))).append(" hem de ")
-                    .append(occasionWord(occasions.get(1))).append(" ortamlarında rahatlıkla tercih edilebilir.");
-        } else {
-            sb.append(switch (o.primary()) {
-                case OFFICE -> "Resmiyet dengesi ofis ve iş ortamları için ideal.";
-                case DAILY -> "Gün içinde rahat hareket etmeni sağlarken özenli görünmeni sağlar.";
-                case EVENING -> "Akşam planları için şık ve iddialı bir seçim.";
-                case WEEKEND -> "Hafta sonu için rahat ve zahmetsiz bir seçim.";
-                case SPORT -> "Hareket özgürlüğü sağlayan parçalarla aktif günler için uygun.";
-            });
-        }
+        String main = occasions.size() >= 2
+                ? l.t("explain.occasion.two", l.inline(occasions.get(0)), l.inline(occasions.get(1)))
+                : l.t("explain.occasion.single." + o.primary().name());
+        text = l.then(text, l.capitalize(main));
         if (!o.venues().isEmpty()) {
-            sb.append(' ').append(capitalize(joinAnd(o.venues().stream().map(v -> lower(v)).toList())))
-                    .append(" için uygun.");
+            String venues = l.join(o.venues().stream().map(l::inline).toList());
+            text = l.then(text, l.capitalize(l.t("explain.occasion.venues", venues)));
         }
-        return sb.toString();
+        return text;
     }
 
-    private static String occasionWord(Occasion occasion) {
-        return switch (occasion) {
-            case DAILY -> "günlük";
-            case OFFICE -> "ofis";
-            case EVENING -> "akşam";
-            case WEEKEND -> "hafta sonu";
-            case SPORT -> "spor";
-        };
-    }
+    // ---- Mevsim (season) ------------------------------------------------------------------------
 
-    // ---- Mevsim -------------------------------------------------------------------------------
-
-    static String seasonText(SeasonAnalysis s) {
-        String season = lower(s.season().label());
+    String seasonText(SeasonAnalysis s) {
+        String season = l.inline(s.season());
         return switch (s.warmth()) {
-            case TOO_LIGHT -> "Bu kombin " + season + " için biraz ince kalabilir; üzerine sıcak bir katman eklemeyi düşünebilirsin.";
-            case TOO_WARM -> "Bu kombin " + season + " için biraz kalın kalabilir; daha hafif bir katman tercih edebilirsin.";
+            case TOO_LIGHT -> l.capitalize(l.t("explain.season.tooLight", season));
+            case TOO_WARM -> l.capitalize(l.t("explain.season.tooWarm", season));
             case OK -> s.layer() == null ? null
-                    : capitalize(season) + " için uygun: " + s.layer().phrase()
-                            + (s.season() == Season.WINTER ? " soğuk günlerde sıcak tutan şık bir katman sağlıyor."
-                            : " serin havalarda şık bir katman sağlıyor.");
+                    : l.capitalize(l.t(s.season() == Season.WINTER ? "explain.season.layerWinter" : "explain.season.layer",
+                            season, phrase(s.layer())));
         };
     }
 
-    // ---- Başlık -------------------------------------------------------------------------------
+    // ---- Başlık (title) -------------------------------------------------------------------------
 
-    /** Fitting title/description pairs, preferred first (the preference varies per outfit). */
-    static List<String[]> titles(OutfitEvaluation e) {
+    /** Fitting title ids (message keys {@code title.<id>}), preferred first; the preference varies per outfit. */
+    static List<String> titleIds(OutfitEvaluation e) {
         int variant = Math.floorMod(e.key().hashCode(), 3);
         StylePreference style = e.style().style();
         Occasion primary = e.occasion().primary();
-        ColorAnalysis.ColorCase colorCase = e.color().colorCase();
         if (primary == Occasion.EVENING && style != StylePreference.SPORT) {
-            return pick(variant,
-                    new String[] {"Şehirde Akşam", "Gün boyundan geceye kolayca uyarlanabilen zamansız parçalar."},
-                    new String[] {"Akşam Şıklığı", "Akşam planları için sade ama etkileyici bir görünüm."},
-                    new String[] {"Gece Zarafeti", "Işıltıya ihtiyaç duymadan şık ve kendinden emin."});
+            return rotate(variant, "cityEvening", "eveningChic", "nightElegance");
         }
-        if (colorCase == ColorAnalysis.ColorCase.TONAL && variant == 0) {
-            List<String[]> tonal = new ArrayList<>();
-            tonal.add(new String[] {"Ton Sür Ton", "Aynı renk ailesinin tonlarıyla sofistike ve bütünlüklü bir görünüm."});
-            tonal.addAll(byStyle(e, 1));
+        if (e.color().colorCase() == ColorAnalysis.ColorCase.TONAL && variant == 0) {
+            List<String> tonal = new ArrayList<>();
+            tonal.add("tonal");
+            tonal.addAll(byStyle(e, style, primary, 1));
             return tonal;
         }
-        return byStyle(e, variant);
+        return byStyle(e, style, primary, variant);
     }
 
-    private static List<String[]> byStyle(OutfitEvaluation e, int variant) {
-        StylePreference style = e.style().style();
-        Occasion primary = e.occasion().primary();
+    private static List<String> byStyle(OutfitEvaluation e, StylePreference style, Occasion primary, int variant) {
         return switch (style) {
             case CLASSIC -> primary == Occasion.OFFICE
-                    ? pick(variant,
-                            new String[] {"Ofis Şıklığı", "Klasik parçalarla modern bir ofis görünümü."},
-                            new String[] {"Zamansız Şıklık", "Klasik parçalarla modern ve sade bir görünüm."},
-                            new String[] {"Klasik Denge", "Her ortamda şıklığını koruyan zamansız bir seçim."})
-                    : pick(variant,
-                            new String[] {"Zamansız Şıklık", "Klasik parçalarla modern ve sade bir görünüm."},
-                            new String[] {"Klasik Denge", "Her ortamda şıklığını koruyan zamansız bir seçim."},
-                            new String[] {"Sade Zarafet", "Az ama doğru parçayla zahmetsiz bir şıklık."});
-            case SMART_CASUAL -> pick(variant,
-                    new String[] {"Smart Casual", "Klasik ve rahat parçaları bir araya getirerek günlük şıklık yakala."},
-                    new String[] {"Rahat Şıklık", "Özenli görünürken rahat hissettiren dengeli bir kombin."},
-                    new String[] {"Özenli Rahatlık", "Gün boyu rahat, her an şık."});
+                    ? rotate(variant, "officeChic", "timeless", "classicBalance")
+                    : rotate(variant, "timeless", "classicBalance", "quietElegance");
+            case SMART_CASUAL -> rotate(variant, "smartCasual", "relaxedChic", "polishedEase");
             case MINIMAL -> primary == Occasion.OFFICE
-                    ? pick(0, new String[] {"Minimal Ofis", "Sade parçalarla modern bir ofis görünümü."},
-                            new String[] {"Sade ve Net", "Az renk, temiz çizgiler, güçlü bir duruş."})
-                    : pick(variant,
-                            new String[] {"Minimal Denge", "Sade parçalarla modern ve net bir görünüm."},
-                            new String[] {"Sade ve Net", "Az renk, temiz çizgiler, güçlü bir duruş."},
-                            e.compatibility().formality() >= 3.2
-                                    ? new String[] {"Sessiz Lüks", "Nötr tonlar ve temiz kesimlerle zahmetsiz bir şıklık."}
-                                    : new String[] {"Sade Rahatlık", "Nötr tonlarda, rahat ve derli toplu bir görünüm."});
-            case BUSINESS -> pick(variant,
-                    new String[] {"Toplantı Günü", "Profesyonel ve kendinden emin bir görünüm."},
-                    new String[] {"Güçlü Duruş", "Net çizgilerle profesyonel bir şıklık."},
-                    new String[] {"İş Şıklığı", "Toplantıdan iş yemeğine rahatlıkla geçebilen bir kombin."});
-            case STREETWEAR -> pick(variant,
-                    new String[] {"Sokak Stili", "Rahat kesimler ve güçlü parçalarla şehirli bir görünüm."},
-                    new String[] {"Şehir Ritmi", "Şehrin temposuna uyan rahat ve karakterli bir kombin."},
-                    new String[] {"Rahat ve Cool", "Zahmetsiz ama dikkat çeken bir sokak görünümü."});
-            case SPORT -> pick(variant,
-                    new String[] {"Aktif Gün", "Konforlu ve fonksiyonel parçalarla enerjik bir görünüm."},
-                    new String[] {"Hareket Özgürlüğü", "Spor ve aktif günler için rahat bir kombin."},
-                    new String[] {"Sportif Denge", "Rahat ama derli toplu bir spor görünümü."});
+                    ? rotate(0, "minimalOffice", "cleanSharp")
+                    : rotate(variant, "minimalBalance", "cleanSharp",
+                            e.compatibility().formality() >= 3.2 ? "quietLuxury" : "simpleComfort");
+            case BUSINESS -> rotate(variant, "meetingDay", "strongPresence", "businessChic");
+            case STREETWEAR -> rotate(variant, "streetStyle", "cityRhythm", "relaxedCool");
+            case SPORT -> rotate(variant, "activeDay", "freedomOfMovement", "sportyBalance");
             case CASUAL -> primary == Occasion.WEEKEND
-                    ? pick(variant,
-                            new String[] {"Hafta Sonu Rahat", "Günlük konfor, zamansız stil."},
-                            new String[] {"Pazar Keyfi", "Rahat, sade ve her zaman işe yarayan bir kombin."},
-                            new String[] {"Hafta Sonu Kaçamağı", "Gezmeye, kahveye ve uzun yürüyüşlere hazır."})
-                    : pick(variant,
-                            new String[] {"Günlük Rahatlık", "Gün boyu rahat ve derli toplu bir görünüm."},
-                            new String[] {"Kolay Şıklık", "Zahmetsiz ama özenli günlük bir kombin."},
-                            new String[] {"Her Günün Kombini", "Dolabındaki temel parçalarla güvenli bir seçim."});
+                    ? rotate(variant, "weekendEasy", "sundayMood", "weekendEscape")
+                    : rotate(variant, "everydayEase", "easyChic", "everydayOutfit");
         };
     }
 
     /** All options, starting with {@code variant} and wrapping around. */
-    private static List<String[]> pick(int variant, String[]... options) {
-        List<String[]> ordered = new ArrayList<>();
-        for (int i = 0; i < options.length; i++) {
-            ordered.add(options[(variant + i) % options.length]);
+    private static List<String> rotate(int variant, String... ids) {
+        List<String> ordered = new ArrayList<>();
+        for (int i = 0; i < ids.length; i++) {
+            ordered.add(ids[(variant + i) % ids.length]);
         }
         return ordered;
     }
 
-    private static List<String> labels(List<ColorName> colors) {
-        return colors.stream().map(c -> lower(c.label())).toList();
+    private String phrase(WardrobeItem item) {
+        return l.phrase(item.color(), item.subcategory());
+    }
+
+    private String colors(List<ColorName> colors) {
+        return l.join(colors.stream().map(l::inline).toList());
     }
 }

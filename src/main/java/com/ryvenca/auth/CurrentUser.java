@@ -12,12 +12,12 @@ public final class CurrentUser {
 
     public static long id(Jwt jwt) {
         if (jwt == null) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "Lütfen giriş yap.");
+            throw new ApiException(ErrorCode.UNAUTHORIZED, "error.auth.required");
         }
         try {
             return Long.parseLong(jwt.getSubject());
         } catch (NumberFormatException e) {
-            throw new ApiException(ErrorCode.UNAUTHORIZED, "Oturumun geçersiz. Lütfen tekrar giriş yap.");
+            throw new ApiException(ErrorCode.UNAUTHORIZED, "error.auth.invalidSession");
         }
     }
 }

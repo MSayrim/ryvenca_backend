@@ -5,25 +5,23 @@ import com.ryvenca.catalog.Labeled;
 
 /** Slot of a garment inside an outfit, in display order. */
 public enum OutfitRole implements Labeled {
-    OUTERWEAR("Dış Giyim", 1.2),
-    TOP("Üst", 1.0),
-    DRESS("Elbise", 1.6),
-    BOTTOM("Alt", 1.0),
-    SHOES("Ayakkabı", 0.45),
-    BAG("Çanta", 0.4),
-    ACCESSORY("Aksesuar", 0.15);
+    OUTERWEAR(1.2),
+    TOP(1.0),
+    DRESS(1.6),
+    BOTTOM(1.0),
+    SHOES(0.45),
+    BAG(0.4),
+    ACCESSORY(0.15);
 
-    private final String label;
     private final double visualArea;
 
-    OutfitRole(String label, double visualArea) {
-        this.label = label;
+    OutfitRole(double visualArea) {
         this.visualArea = visualArea;
     }
 
     @Override
-    public String label() {
-        return label;
+    public String labelKey() {
+        return "role." + name();
     }
 
     /** Relative share of the silhouette the piece occupies; drives color weighting. */

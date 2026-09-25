@@ -6,11 +6,11 @@ import java.util.List;
 import com.ryvenca.catalog.StylePreference;
 import com.ryvenca.catalog.WardrobeType;
 
-public record UserDto(Long id, String email, String displayName, WardrobeType wardrobeType,
+public record UserDto(Long id, String email, String displayName, WardrobeType wardrobeType, String language,
                       List<StylePreference> stylePreferences, boolean onboardingCompleted, Instant createdAt) {
 
     public static UserDto from(User user) {
-        return new UserDto(user.getId(), user.getEmail(), user.getDisplayName(), user.getWardrobeType(),
+        return new UserDto(user.getId(), user.getEmail(), user.getDisplayName(), user.getWardrobeType(), user.getLanguage(),
                 List.copyOf(user.getStylePreferences()), user.isOnboardingCompleted(), user.getCreatedAt());
     }
 }

@@ -13,6 +13,11 @@ spring:
       hibernate.jdbc.time_zone: UTC
   flyway:
     enabled: true
+  messages:
+    basename: i18n/messages
+    encoding: UTF-8
+    fallback-to-system-locale: false
+    use-code-as-default-message: false
   servlet:
     multipart:
       max-file-size: 15MB

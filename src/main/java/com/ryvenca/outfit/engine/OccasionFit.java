@@ -96,45 +96,45 @@ final class OccasionFit {
                 venues(suited, formality, subs, shoes), scores, formality);
     }
 
-    private static List<String> venues(List<Occasion> occasions, double formality, Set<Subcategory> subs,
+    private static List<Venue> venues(List<Occasion> occasions, double formality, Set<Subcategory> subs,
                                        WardrobeItem shoes) {
-        Set<String> venues = new LinkedHashSet<>();
+        Set<Venue> venues = new LinkedHashSet<>();
         for (Occasion occasion : occasions) {
             switch (occasion) {
                 case OFFICE -> {
-                    venues.add("Ofis");
+                    venues.add(Venue.OFFICE);
                     if (formality >= 3.7) {
-                        venues.add("Toplantı");
+                        venues.add(Venue.MEETING);
                     }
                 }
                 case EVENING -> {
-                    venues.add("Akşam Yemeği");
+                    venues.add(Venue.DINNER);
                     if (formality >= 4.3 || subs.stream().anyMatch(DRESSY::contains)) {
-                        venues.add("Davet");
+                        venues.add(Venue.PARTY);
                     }
                 }
                 case DAILY -> {
-                    venues.add("Kahve Buluşması");
+                    venues.add(Venue.COFFEE);
                     if (formality < 3.2) {
-                        venues.add("Alışveriş");
+                        venues.add(Venue.SHOPPING);
                     }
                 }
                 case WEEKEND -> {
-                    venues.add("Hafta Sonu Gezisi");
+                    venues.add(Venue.WEEKEND_TRIP);
                     if (formality >= 2.2) {
-                        venues.add("Brunch");
+                        venues.add(Venue.BRUNCH);
                     }
                 }
                 case SPORT -> {
-                    venues.add("Spor Salonu");
-                    venues.add("Yürüyüş");
+                    venues.add(Venue.GYM);
+                    venues.add(Venue.WALK);
                 }
             }
         }
         boolean travel = shoes != null && TRAVEL_SHOES.contains(shoes.subcategory())
                 && formality >= 2 && formality <= 3.9 && subs.stream().noneMatch(DRESSY::contains);
         if (travel) {
-            venues.add("Seyahat");
+            venues.add(Venue.TRAVEL);
         }
         return venues.stream().limit(5).toList();
     }

@@ -14,17 +14,17 @@ public final class AuthDtos {
     }
 
     public record RegisterRequest(
-            @NotBlank(message = "E-posta gerekli") @Email(message = "Geçerli bir e-posta gir")
-            @Size(max = 254, message = "E-posta çok uzun") String email,
-            @NotBlank(message = "Şifre gerekli") @Size(min = 8, max = 100, message = "Şifre en az 8 karakter olmalı")
+            @NotBlank(message = "{validation.email.required}") @Email(message = "{validation.email.invalid}")
+            @Size(max = 254, message = "{validation.email.size}") String email,
+            @NotBlank(message = "{validation.password.required}") @Size(min = 8, max = 100, message = "{validation.password.size}")
             String password,
-            @NotBlank(message = "İsim gerekli") @Size(max = 80, message = "İsim en fazla 80 karakter olabilir")
+            @NotBlank(message = "{validation.name.required}") @Size(max = 80, message = "{validation.name.size}")
             String displayName) {
     }
 
     public record LoginRequest(
-            @NotBlank(message = "E-posta gerekli") String email,
-            @NotBlank(message = "Şifre gerekli") String password) {
+            @NotBlank(message = "{validation.email.required}") String email,
+            @NotBlank(message = "{validation.password.required}") String password) {
     }
 
     public record AuthResponse(String token, Instant expiresAt, UserDto user) {

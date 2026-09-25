@@ -26,16 +26,16 @@ public final class GarmentDtos {
 
     public record GarmentRequest(
             UUID imageId,
-            @Size(max = 80, message = "İsim en fazla 80 karakter olabilir") String name,
-            @NotNull(message = "Kategori seç") Category category,
-            @NotNull(message = "Alt kategori seç") Subcategory subcategory,
-            @NotNull(message = "Renk seç") ColorName color,
+            @Size(max = 80, message = "{validation.name.size}") String name,
+            @NotNull(message = "{validation.category.required}") Category category,
+            @NotNull(message = "{validation.subcategory.required}") Subcategory subcategory,
+            @NotNull(message = "{validation.color.required}") ColorName color,
             String colorHex,
             Boolean pattern,
             List<Season> seasons,
             List<Occasion> occasions) {
     }
 
-    public record FavoriteRequest(@NotNull(message = "favorite gerekli") Boolean favorite) {
+    public record FavoriteRequest(@NotNull(message = "{validation.favorite.required}") Boolean favorite) {
     }
 }

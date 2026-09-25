@@ -1,5 +1,6 @@
 package com.ryvenca.config;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 
@@ -26,9 +27,15 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
+
 import com.nimbusds.jose.jwk.source.ImmutableSecret;
 import com.ryvenca.common.ErrorCode;
 import com.ryvenca.common.ErrorResponse;
+import com.ryvenca.i18n.Language;
+import com.ryvenca.i18n.LanguageLocaleResolver;
+import com.ryvenca.i18n.Texts;
 
 import tools.jackson.databind.json.JsonMapper;
 
@@ -38,7 +45,7 @@ public class SecurityConfig {
     private static final JsonMapper JSON = JsonMapper.builder().build();
 
     @Bean
-    SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+    SecurityFilterChain securityFilterChain(HttpSecurity http, Texts texts) throws Exception {
         http
                 .csrf(csrf -> csrf.disable())
                 .cors(cors -> {
@@ -54,10 +61,10 @@ public class SecurityConfig {
                 .oauth2ResourceServer(oauth -> oauth
                         .jwt(jwt -> {
                         })
-                        .authenticationEntryPoint(unauthorized()))
+                        .authenticationEntryPoint(unauthorized(texts)))
                 .exceptionHandling(e -> e
-                        .authenticationEntryPoint(unauthorized())
-                        .accessDeniedHandler(forbidden()));
+                        .authenticationEntryPoint(unauthorized(texts))
+                        .accessDeniedHandler(forbidden(texts)));
         return http.build();
     }
 
@@ -91,26 +98,28 @@ public class SecurityConfig {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(properties.cors().allowedOrigins());
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept-Language"));
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
         return source;
     }
 
-    private static AuthenticationEntryPoint unauthorized() {
-        return (request, response, ex) -> write(response, ErrorCode.UNAUTHORIZED, "Lütfen giriş yap.");
+    private static AuthenticationEntryPoint unauthorized(Texts texts) {
+        return (request, response, ex) -> write(request, response, texts, ErrorCode.UNAUTHORIZED, "error.auth.required");
     }
 
-    private static AccessDeniedHandler forbidden() {
-        return (request, response, ex) -> write(response, ErrorCode.FORBIDDEN, "Bu işlem için yetkin yok.");
+    private static AccessDeniedHandler forbidden(Texts texts) {
+        return (request, response, ex) -> write(request, response, texts, ErrorCode.FORBIDDEN, "error.forbidden");
     }
 
-    private static void write(jakarta.servlet.http.HttpServletResponse response, ErrorCode code, String message)
-            throws java.io.IOException {
+    /** Security errors happen before the DispatcherServlet, so the language is resolved here directly. */
+    private static void write(HttpServletRequest request, HttpServletResponse response, Texts texts, ErrorCode code,
+                              String messageKey) throws IOException {
+        Language language = LanguageLocaleResolver.resolve(request.getHeader("Accept-Language"));
         response.setStatus(code.status().value());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setCharacterEncoding(StandardCharsets.UTF_8.name());
-        response.getWriter().write(JSON.writeValueAsString(ErrorResponse.of(code, message)));
+        response.getWriter().write(JSON.writeValueAsString(ErrorResponse.of(code, texts.of(language).t(messageKey))));
     }
 }

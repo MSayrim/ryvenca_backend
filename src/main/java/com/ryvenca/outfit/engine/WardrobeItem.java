@@ -9,7 +9,6 @@ import com.ryvenca.catalog.Subcategory;
 import com.ryvenca.color.ColorName;
 import com.ryvenca.color.ColorTone;
 import com.ryvenca.color.Lab;
-import com.ryvenca.common.TurkishText;
 
 /** Engine view of a garment: everything the scorer needs, nothing persistence related. */
 public record WardrobeItem(long id, Subcategory subcategory, ColorName color, Lab lab, boolean pattern,
@@ -52,10 +51,5 @@ public record WardrobeItem(long id, Subcategory subcategory, ColorName color, La
             return ColorTone.NEUTRAL;
         }
         return color.tone();
-    }
-
-    /** Short lowercase description used inside sentences, e.g. "bej blazer". */
-    public String phrase() {
-        return TurkishText.lower(color.label() + " " + subcategory.label());
     }
 }

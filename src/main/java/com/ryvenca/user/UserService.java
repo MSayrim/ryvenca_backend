@@ -7,6 +7,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.ryvenca.common.ApiException;
 import com.ryvenca.common.ErrorCode;
+import com.ryvenca.i18n.Language;
 import com.ryvenca.image.ImageService;
 
 @Service
@@ -24,7 +25,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public User require(long userId) {
         return users.findById(userId)
-                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "Oturumun sona erdi. Lütfen tekrar giriş yap."));
+                .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "error.auth.sessionExpired"));
     }
 
     @Transactional
@@ -33,7 +34,7 @@ public class UserService {
         if (request.displayName() != null) {
             String name = request.displayName().trim();
             if (name.isEmpty()) {
-                throw ApiException.invalidField("displayName", "İsim boş olamaz");
+                throw ApiException.invalidField("displayName", "validation.name.blank");
             }
             user.setDisplayName(name);
         }
@@ -44,6 +45,11 @@ public class UserService {
             user.setStylePreferences(request.stylePreferences().isEmpty()
                     ? EnumSet.noneOf(com.ryvenca.catalog.StylePreference.class)
                     : EnumSet.copyOf(request.stylePreferences()));
+        }
+        if (request.language() != null) {
+            Language language = Language.fromTag(request.language())
+                    .orElseThrow(() -> ApiException.invalidField("language", "validation.language.unsupported"));
+            user.setLanguage(language.code());
         }
         if (request.onboardingCompleted() != null) {
             user.setOnboardingCompleted(request.onboardingCompleted());

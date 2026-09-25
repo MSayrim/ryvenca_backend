@@ -44,6 +44,9 @@ public class User {
     @Column(name = "style_preferences", nullable = false)
     private Set<StylePreference> stylePreferences = EnumSet.noneOf(StylePreference.class);
 
+    /** Preferred UI language code (see {@link com.ryvenca.i18n.Language}); null = not chosen yet. */
+    private String language;
+
     @Column(name = "onboarding_completed", nullable = false)
     private boolean onboardingCompleted;
 
@@ -109,6 +112,14 @@ public class User {
         this.stylePreferences = stylePreferences.isEmpty()
                 ? EnumSet.noneOf(StylePreference.class)
                 : EnumSet.copyOf(stylePreferences);
+    }
+
+    public String getLanguage() {
+        return language;
+    }
+
+    public void setLanguage(String language) {
+        this.language = language;
     }
 
     public boolean isOnboardingCompleted() {

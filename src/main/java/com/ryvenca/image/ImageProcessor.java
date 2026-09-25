@@ -48,13 +48,13 @@ public class ImageProcessor {
         }
         if (image == null) {
             throw new ApiException(ErrorCode.INVALID_IMAGE,
-                    "Bu dosya okunamadı. Lütfen JPEG, PNG veya WebP formatında bir fotoğraf seç.");
+                    "error.image.unreadable");
         }
         if ((long) image.getWidth() * image.getHeight() > MAX_PIXELS) {
-            throw new ApiException(ErrorCode.INVALID_IMAGE, "Fotoğraf çözünürlüğü çok yüksek.");
+            throw new ApiException(ErrorCode.INVALID_IMAGE, "error.image.tooManyPixels");
         }
         if (image.getWidth() < 64 || image.getHeight() < 64) {
-            throw new ApiException(ErrorCode.INVALID_IMAGE, "Fotoğraf çok küçük. Daha net bir fotoğraf dene.");
+            throw new ApiException(ErrorCode.INVALID_IMAGE, "error.image.tooSmall");
         }
         return applyOrientation(ImageScaling.ensureRgb(image), readOrientation(bytes));
     }

@@ -8,8 +8,9 @@ import com.ryvenca.catalog.WardrobeType;
 import jakarta.validation.constraints.Size;
 
 public record UpdateProfileRequest(
-        @Size(min = 1, max = 80, message = "İsim 1-80 karakter olmalı") String displayName,
+        @Size(min = 1, max = 80, message = "{validation.displayName.size}") String displayName,
         WardrobeType wardrobeType,
-        @Size(max = 7, message = "En fazla 7 stil seçebilirsin") List<StylePreference> stylePreferences,
-        Boolean onboardingCompleted) {
+        @Size(max = 7, message = "{validation.styles.size}") List<StylePreference> stylePreferences,
+        Boolean onboardingCompleted,
+        String language) {
 }

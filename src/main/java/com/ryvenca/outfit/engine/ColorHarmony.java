@@ -81,6 +81,7 @@ final class ColorHarmony {
             }
         }
         boolean paletteMatched = paletteIndex >= 0;
+        String paletteId = paletteMatched ? fit.library().get(paletteIndex).id() : null;
 
         ColorCase colorCase;
         double rule;
@@ -156,7 +157,7 @@ final class ColorHarmony {
         rule = clamp(rule);
 
         double score = clamp(0.5 * palette + 0.5 * rule);
-        return new ColorAnalysis(score, paletteIndex, palette, paletteMatched, rule, colorCase, colors, neutrals, statement, nearClash,
+        return new ColorAnalysis(score, paletteId, palette, paletteMatched, rule, colorCase, colors, neutrals, statement, nearClash,
                 patternClash, bagShoeEcho, accentEcho);
     }
 

@@ -10,6 +10,8 @@ import com.ryvenca.color.ColorName;
 import com.ryvenca.color.ColorScience;
 import com.ryvenca.common.ApiException;
 import com.ryvenca.garment.GarmentDtos.GarmentRequest;
+import com.ryvenca.i18n.Localizer;
+import com.ryvenca.i18n.Texts;
 import com.ryvenca.image.ImageAsset;
 import com.ryvenca.image.ImageService;
 import com.ryvenca.outfit.SavedOutfitRepository;
@@ -20,11 +22,14 @@ public class GarmentService {
     private final GarmentRepository garments;
     private final ImageService images;
     private final SavedOutfitRepository savedOutfits;
+    private final Texts texts;
 
-    public GarmentService(GarmentRepository garments, ImageService images, SavedOutfitRepository savedOutfits) {
+    public GarmentService(GarmentRepository garments, ImageService images, SavedOutfitRepository savedOutfits,
+                          Texts texts) {
         this.garments = garments;
         this.images = images;
         this.savedOutfits = savedOutfits;
+        this.texts = texts;
     }
 
     @Transactional(readOnly = true)
@@ -34,23 +39,24 @@ public class GarmentService {
 
     @Transactional(readOnly = true)
     public List<Garment> list(long ownerId, GarmentFilter filter) {
-        return wardrobe(ownerId).stream().filter(filter::matches).toList();
+        Localizer l = texts.current();
+        return wardrobe(ownerId).stream().filter(g -> filter.matches(g, l)).toList();
     }
 
     @Transactional(readOnly = true)
     public Garment get(long ownerId, long id) {
         return garments.findByIdAndOwnerId(id, ownerId)
-                .orElseThrow(() -> ApiException.notFound("Parça bulunamadı."));
+                .orElseThrow(() -> ApiException.notFound("error.garment.notFound"));
     }
 
     @Transactional
     public Garment create(long ownerId, GarmentRequest request) {
         if (request.imageId() == null) {
-            throw ApiException.invalidField("imageId", "Önce kıyafetinin fotoğrafını ekle.");
+            throw ApiException.invalidField("imageId", "error.garment.photoRequired");
         }
         ImageAsset image = images.requireOwned(ownerId, request.imageId());
         if (image.isAttached()) {
-            throw ApiException.invalidField("imageId", "Bu fotoğraf zaten başka bir parçada kullanılıyor.");
+            throw ApiException.invalidField("imageId", "error.garment.photoInUse");
         }
         Garment garment = new Garment(ownerId);
         image.setAttached(true);
@@ -66,7 +72,7 @@ public class GarmentService {
         if (request.imageId() != null && !request.imageId().equals(garment.getImage().getId())) {
             ImageAsset replacement = images.requireOwned(ownerId, request.imageId());
             if (replacement.isAttached()) {
-                throw ApiException.invalidField("imageId", "Bu fotoğraf zaten başka bir parçada kullanılıyor.");
+                throw ApiException.invalidField("imageId", "error.garment.photoInUse");
             }
             ImageAsset old = garment.getImage();
             replacement.setAttached(true);
@@ -106,7 +112,7 @@ public class GarmentService {
 
     private void apply(Garment garment, GarmentRequest request, boolean resolveColor) {
         if (request.subcategory().category() != request.category()) {
-            throw ApiException.invalidField("subcategory", "Alt kategori seçilen kategoriye ait değil.");
+            throw ApiException.invalidField("subcategory", "error.garment.subcategoryMismatch");
         }
         garment.setType(request.subcategory());
         String name = request.name() == null ? null : request.name().trim();

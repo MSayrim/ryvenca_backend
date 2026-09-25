@@ -11,12 +11,14 @@ import org.junit.jupiter.api.Test;
 import com.ryvenca.catalog.Occasion;
 import com.ryvenca.catalog.Season;
 import com.ryvenca.color.PaletteLibrary;
+import com.ryvenca.i18n.Language;
+import com.ryvenca.i18n.TestTexts;
 
 class OutfitExplainerTest {
 
     private static final PaletteLibrary PALETTES = new PaletteLibrary();
     private final OutfitEngine engine = new OutfitEngine(capsule(), PALETTES);
-    private final OutfitExplainer explainer = new OutfitExplainer(PALETTES);
+    private final OutfitExplainer explainer = new OutfitExplainer(TestTexts.localizer(Language.TR));
     private final OutfitRequest autumn = new OutfitRequest(Season.AUTUMN, null, Set.of(), 1);
 
     private OutfitStory story(OutfitRequest request, WardrobeItem... items) {
@@ -85,5 +87,15 @@ class OutfitExplainerTest {
         String preferred = explainer.explain(e).title();
         String alternative = explainer.explain(e, Set.of(preferred)).title();
         assertThat(alternative).isNotEqualTo(preferred).isNotBlank();
+    }
+
+    @Test
+    void explainsInEnglish() {
+        OutfitExplainer english = new OutfitExplainer(TestTexts.localizer(Language.EN));
+        OutfitStory story = english.explain(engine.evaluate(List.of(BEIGE_BLAZER, BLACK_TEE, BLUE_JEANS, WHITE_SNEAKER), autumn));
+        assertThat(story.reasons()).extracting(OutfitStory.Reason::title)
+                .contains("Color Balance", "Texture Harmony", "Where to Wear");
+        assertThat(story.reasons().get(1).text()).startsWith("The beige blazer with the blue jeans");
+        assertThat(story.title()).doesNotContainPattern("[çğıöşüİ]");
     }
 }

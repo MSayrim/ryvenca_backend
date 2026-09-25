@@ -2,39 +2,42 @@ package com.ryvenca.common;
 
 import java.util.Map;
 
-/** Business error with a user-presentable Turkish message. */
+/**
+ * Business error. The message and the field error values are message keys, rendered in the request
+ * language by {@link GlobalExceptionHandler}.
+ */
 public class ApiException extends RuntimeException {
 
     private final ErrorCode code;
-    private final Map<String, String> fieldErrors;
+    private final Map<String, String> fieldErrorKeys;
 
-    public ApiException(ErrorCode code, String message) {
-        this(code, message, Map.of());
+    public ApiException(ErrorCode code, String messageKey) {
+        this(code, messageKey, Map.of());
     }
 
-    public ApiException(ErrorCode code, String message, Map<String, String> fieldErrors) {
-        super(message);
+    public ApiException(ErrorCode code, String messageKey, Map<String, String> fieldErrorKeys) {
+        super(messageKey);
         this.code = code;
-        this.fieldErrors = fieldErrors;
+        this.fieldErrorKeys = fieldErrorKeys;
     }
 
     public ErrorCode code() {
         return code;
     }
 
-    public Map<String, String> fieldErrors() {
-        return fieldErrors;
+    public String messageKey() {
+        return getMessage();
     }
 
-    public static ApiException notFound(String message) {
-        return new ApiException(ErrorCode.NOT_FOUND, message);
+    public Map<String, String> fieldErrorKeys() {
+        return fieldErrorKeys;
     }
 
-    public static ApiException badRequest(String message) {
-        return new ApiException(ErrorCode.VALIDATION_ERROR, message);
+    public static ApiException notFound(String messageKey) {
+        return new ApiException(ErrorCode.NOT_FOUND, messageKey);
     }
 
-    public static ApiException invalidField(String field, String message) {
-        return new ApiException(ErrorCode.VALIDATION_ERROR, message, Map.of(field, message));
+    public static ApiException invalidField(String field, String messageKey) {
+        return new ApiException(ErrorCode.VALIDATION_ERROR, messageKey, Map.of(field, messageKey));
     }
 }
