@@ -29,6 +29,9 @@ public final class OutfitEngine {
     private static final int PAIR_BEAM = 40;
     private static final int BASE_BEAM = 140;
     private static final double JITTER = 2.5;
+    /** "Bununla ne gider?" lists the essential roles first, then alternatives and finishing touches. */
+    private static final List<OutfitRole> PAIRING_ORDER = List.of(OutfitRole.TOP, OutfitRole.BOTTOM, OutfitRole.SHOES,
+            OutfitRole.DRESS, OutfitRole.OUTERWEAR, OutfitRole.BAG, OutfitRole.ACCESSORY);
 
     private final List<WardrobeItem> wardrobe;
     private final Map<Long, WardrobeItem> byId = new HashMap<>();
@@ -107,7 +110,7 @@ public final class OutfitEngine {
             }
         }
         List<Pairings.RoleMatches> matches = new ArrayList<>();
-        for (OutfitRole role : OutfitRole.values()) {
+        for (OutfitRole role : PAIRING_ORDER) {
             Map<Long, Integer> scores = best.get(role);
             if (role == anchor.role() || scores == null || scores.isEmpty()) {
                 continue;

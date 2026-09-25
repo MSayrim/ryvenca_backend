@@ -125,7 +125,7 @@ class OutfitEngineTest {
         assertThat(pairings.outfits()).isNotEmpty();
         pairings.outfits().forEach(e -> assertThat(e.items()).contains(BEIGE_BLAZER));
         List<OutfitRole> roles = pairings.matches().stream().map(Pairings.RoleMatches::role).toList();
-        assertThat(roles).contains(OutfitRole.TOP, OutfitRole.BOTTOM, OutfitRole.SHOES).doesNotContain(OutfitRole.OUTERWEAR);
+        assertThat(roles).startsWith(OutfitRole.TOP, OutfitRole.BOTTOM, OutfitRole.SHOES).doesNotContain(OutfitRole.OUTERWEAR);
         Pairings.RoleMatches bottoms = pairings.matches().stream().filter(m -> m.role() == OutfitRole.BOTTOM).findFirst().orElseThrow();
         assertThat(bottoms.items()).extracting(Pairings.Match::item).contains(NAVY_TROUSERS, BLUE_JEANS);
         assertThat(bottoms.items().getFirst().score()).isGreaterThanOrEqualTo(bottoms.items().getLast().score());
