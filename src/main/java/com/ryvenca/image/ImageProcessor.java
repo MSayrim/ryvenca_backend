@@ -36,6 +36,7 @@ public class ImageProcessor {
     public static final int THUMB_WIDTH = 480;
     public static final int THUMB_HEIGHT = 600;
     private static final long MAX_PIXELS = 50_000_000L;
+    private static final double MAX_CONTRAST_GAIN = 1.3;
 
     /** Decodes JPEG/PNG/WebP, applies EXIF orientation and flattens to RGB. */
     public BufferedImage decode(byte[] bytes) {
@@ -108,8 +109,9 @@ public class ImageProcessor {
     }
 
     /**
-     * Gentle brightness/contrast normalization: stretches the 1st–99th luminance percentiles towards
-     * the full range (blended at 45% so the photo keeps its character) and lifts very dark photos.
+     * Gentle brightness/contrast normalization: a mild, capped contrast stretch around the photo's own
+     * mid-tone (at most ×1.15 after blending) and a small lift for very dark photos. The same curve is
+     * applied to R, G and B, and it is kept close to identity so garment colors stay true.
      */
     static BufferedImage normalize(BufferedImage image) {
         int w = image.getWidth();
@@ -125,20 +127,18 @@ public class ImageProcessor {
         int lo = percentile(histogram, pixels.length, 0.01);
         int hi = percentile(histogram, pixels.length, 0.99);
         double mean = sum / (double) pixels.length;
-        boolean stretch = hi - lo < 235 && hi - lo > 40;
-        double gamma = mean < 85 ? 0.85 : 1.0;
-        if (!stretch && gamma == 1.0) {
+        double gain = hi - lo > 40 ? Math.min(MAX_CONTRAST_GAIN, 235.0 / (hi - lo)) : 1.0;
+        double gamma = mean < 85 ? 0.88 : 1.0;
+        if (gain <= 1.0 && gamma == 1.0) {
             return image;
         }
+        double pivot = (lo + hi) / 2.0;
         int[] lut = new int[256];
         for (int v = 0; v < 256; v++) {
-            double out = v;
-            if (stretch) {
-                double stretched = (v - lo) * 255.0 / (hi - lo);
-                out = 0.55 * v + 0.45 * Math.max(0, Math.min(255, stretched));
-            }
+            double stretched = pivot + (v - pivot) * Math.max(1.0, gain);
+            double out = 0.5 * v + 0.5 * stretched;
             if (gamma != 1.0) {
-                out = 255 * Math.pow(out / 255.0, gamma);
+                out = 255 * Math.pow(Math.max(0, Math.min(255, out)) / 255.0, gamma);
             }
             lut[v] = (int) Math.round(Math.max(0, Math.min(255, out)));
         }

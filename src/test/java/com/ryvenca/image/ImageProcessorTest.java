@@ -9,6 +9,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
+import com.ryvenca.color.ColorScience;
+import com.ryvenca.color.Lab;
 import com.ryvenca.color.SyntheticPhotos;
 import com.ryvenca.common.ApiException;
 
@@ -90,5 +92,24 @@ class ImageProcessorTest {
     void rejectsNonImages() {
         assertThatThrownBy(() -> processor.decode("not an image".getBytes()))
                 .isInstanceOf(ApiException.class);
+    }
+
+    @Test
+    void normalizationKeepsGarmentColorsTrue() {
+        // Low-contrast photo: beige garment on a pale gray-blue background.
+        BufferedImage photo = SyntheticPhotos.garmentOn("#A7ACB2", "#83745F", 600, 800, 4);
+        BufferedImage out = ImageProcessor.normalize(photo);
+        for (int[] xy : new int[][] {{300, 400}, {10, 10}, {590, 790}, {200, 600}}) {
+            Lab before = ColorScience.rgbToLab(photo.getRGB(xy[0], xy[1]));
+            Lab after = ColorScience.rgbToLab(out.getRGB(xy[0], xy[1]));
+            assertThat(ColorScience.deltaE2000(before, after)).as("pixel %d,%d", xy[0], xy[1]).isLessThan(8);
+            assertThat(Math.abs(after.chroma() - before.chroma())).isLessThan(4);
+        }
+    }
+
+    @Test
+    void wellExposedPhotosAreLeftAlone() {
+        BufferedImage photo = SyntheticPhotos.garmentOn("#F2EEE8", "#1C1C1C", 600, 800, 4);
+        assertThat(ImageProcessor.normalize(photo)).isSameAs(photo);
     }
 }
