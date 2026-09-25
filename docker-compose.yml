@@ -1,0 +1,35 @@
+# Local production-like stack: PostgreSQL + API. Usage: RYVENCA_JWT_SECRET=... docker compose up --build
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: ryvenca
+      POSTGRES_USER: ryvenca
+      POSTGRES_PASSWORD: ryvenca
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ryvenca"]
+      interval: 5s
+      retries: 10
+
+  api:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      RYVENCA_DB_URL: jdbc:postgresql://db:5432/ryvenca
+      RYVENCA_DB_USER: ryvenca
+      RYVENCA_DB_PASSWORD: ryvenca
+      RYVENCA_JWT_SECRET: ${RYVENCA_JWT_SECRET:?set RYVENCA_JWT_SECRET (at least 32 characters)}
+      RYVENCA_CORS_ORIGINS: ${RYVENCA_CORS_ORIGINS:-http://localhost:5173}
+      RYVENCA_PUBLIC_BASE_URL: ${RYVENCA_PUBLIC_BASE_URL:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - media:/data/media
+
+volumes:
+  db-data:
+  media:

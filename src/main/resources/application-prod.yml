@@ -1,0 +1,10 @@
+# Production profile: PostgreSQL + mandatory secrets from the environment.
+spring:
+  datasource:
+    url: ${RYVENCA_DB_URL}
+    username: ${RYVENCA_DB_USER}
+    password: ${RYVENCA_DB_PASSWORD}
+
+ryvenca:
+  security:
+    jwt-secret: ${RYVENCA_JWT_SECRET}
