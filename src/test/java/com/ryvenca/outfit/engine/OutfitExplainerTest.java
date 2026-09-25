@@ -78,4 +78,12 @@ class OutfitExplainerTest {
             assertThat(basic.paletteName()).doesNotContain("Turuncu");
         }
     }
+
+    @Test
+    void avoidsTitlesAlreadyUsedInTheSameList() {
+        OutfitEvaluation e = engine.evaluate(List.of(BEIGE_BLAZER, WHITE_SHIRT, NAVY_TROUSERS, BROWN_LOAFER), autumn);
+        String preferred = explainer.explain(e).title();
+        String alternative = explainer.explain(e, Set.of(preferred)).title();
+        assertThat(alternative).isNotEqualTo(preferred).isNotBlank();
+    }
 }

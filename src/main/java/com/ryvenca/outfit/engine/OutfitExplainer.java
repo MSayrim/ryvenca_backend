@@ -25,6 +25,14 @@ public final class OutfitExplainer {
     }
 
     public OutfitStory explain(OutfitEvaluation e) {
+        return explain(e, java.util.Set.of());
+    }
+
+    /**
+     * @param usedTitles titles already shown in the same list; another fitting variant is chosen when
+     *                   possible so two cards next to each other do not carry the same name.
+     */
+    public OutfitStory explain(OutfitEvaluation e, java.util.Set<String> usedTitles) {
         String paletteName = e.color().paletteMatched() ? palettes.get(e.color().paletteIndex()).name() : null;
         List<Reason> reasons = new ArrayList<>();
         reasons.add(new Reason("COLOR", "Renk Dengesi", colorText(e.color(), paletteName)));
@@ -34,7 +42,8 @@ public final class OutfitExplainer {
         if (season != null) {
             reasons.add(new Reason("SEASON", "Mevsim", season));
         }
-        String[] title = title(e);
+        List<String[]> options = titles(e);
+        String[] title = options.stream().filter(t -> !usedTitles.contains(t[0])).findFirst().orElse(options.getFirst());
         return new OutfitStory(title[0], title[1], List.copyOf(reasons), paletteName);
     }
 
@@ -203,7 +212,8 @@ public final class OutfitExplainer {
 
     // ---- Başlık -------------------------------------------------------------------------------
 
-    static String[] title(OutfitEvaluation e) {
+    /** Fitting title/description pairs, preferred first (the preference varies per outfit). */
+    static List<String[]> titles(OutfitEvaluation e) {
         int variant = Math.floorMod(e.key().hashCode(), 3);
         StylePreference style = e.style().style();
         Occasion primary = e.occasion().primary();
@@ -215,8 +225,17 @@ public final class OutfitExplainer {
                     new String[] {"Gece Zarafeti", "Işıltıya ihtiyaç duymadan şık ve kendinden emin."});
         }
         if (colorCase == ColorAnalysis.ColorCase.TONAL && variant == 0) {
-            return new String[] {"Ton Sür Ton", "Aynı renk ailesinin tonlarıyla sofistike ve bütünlüklü bir görünüm."};
+            List<String[]> tonal = new ArrayList<>();
+            tonal.add(new String[] {"Ton Sür Ton", "Aynı renk ailesinin tonlarıyla sofistike ve bütünlüklü bir görünüm."});
+            tonal.addAll(byStyle(e, 1));
+            return tonal;
         }
+        return byStyle(e, variant);
+    }
+
+    private static List<String[]> byStyle(OutfitEvaluation e, int variant) {
+        StylePreference style = e.style().style();
+        Occasion primary = e.occasion().primary();
         return switch (style) {
             case CLASSIC -> primary == Occasion.OFFICE
                     ? pick(variant,
@@ -232,7 +251,8 @@ public final class OutfitExplainer {
                     new String[] {"Rahat Şıklık", "Özenli görünürken rahat hissettiren dengeli bir kombin."},
                     new String[] {"Özenli Rahatlık", "Gün boyu rahat, her an şık."});
             case MINIMAL -> primary == Occasion.OFFICE
-                    ? new String[] {"Minimal Ofis", "Sade parçalarla modern bir ofis görünümü."}
+                    ? pick(0, new String[] {"Minimal Ofis", "Sade parçalarla modern bir ofis görünümü."},
+                            new String[] {"Sade ve Net", "Az renk, temiz çizgiler, güçlü bir duruş."})
                     : pick(variant,
                             new String[] {"Minimal Denge", "Sade parçalarla modern ve net bir görünüm."},
                             new String[] {"Sade ve Net", "Az renk, temiz çizgiler, güçlü bir duruş."},
@@ -263,8 +283,13 @@ public final class OutfitExplainer {
         };
     }
 
-    private static String[] pick(int variant, String[]... options) {
-        return options[variant % options.length];
+    /** All options, starting with {@code variant} and wrapping around. */
+    private static List<String[]> pick(int variant, String[]... options) {
+        List<String[]> ordered = new ArrayList<>();
+        for (int i = 0; i < options.length; i++) {
+            ordered.add(options[(variant + i) % options.length]);
+        }
+        return ordered;
     }
 
     private static List<String> labels(List<ColorName> colors) {

@@ -4,9 +4,11 @@ import java.time.Clock;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -108,7 +110,7 @@ public class OutfitService {
         OutfitRequest request = request(ctx, season, occasion, seed);
         Readiness readiness = readiness(ctx.all());
         List<OutfitDto> outfits = readiness.ready()
-                ? ctx.engine().suggest(request, limit).stream().map(e -> toDto(e, ctx)).toList()
+                ? toDtos(ctx.engine().suggest(request, limit), ctx)
                 : List.of();
         return new SuggestionsResponse(outfits, readiness, request.season(), occasion);
     }
@@ -124,8 +126,7 @@ public class OutfitService {
         Context ctx = context(userId);
         OutfitRequest request = request(ctx, null, null, null);
         OutfitEvaluation reference = evaluate(ctx, ids, request);
-        return new SimilarResponse(ctx.engine().similar(reference, request, limit).stream()
-                .map(e -> toDto(e, ctx)).toList());
+        return new SimilarResponse(toDtos(ctx.engine().similar(reference, request, limit), ctx));
     }
 
     @Transactional(readOnly = true)
@@ -144,7 +145,7 @@ public class OutfitService {
                         .toList()))
                 .toList();
         return new PairingsResponse(mapper.toDto(anchor), matches,
-                pairings.outfits().stream().map(e -> toDto(e, ctx)).toList(), readiness);
+                toDtos(pairings.outfits(), ctx), readiness);
     }
 
     @Transactional(readOnly = true)
@@ -209,7 +210,7 @@ public class OutfitService {
         if (!readiness(ctx.all()).ready()) {
             return List.of();
         }
-        return ctx.engine().suggest(request(ctx, null, null, null), limit).stream().map(e -> toDto(e, ctx)).toList();
+        return toDtos(ctx.engine().suggest(request(ctx, null, null, null), limit), ctx);
     }
 
     public Readiness readiness(List<Garment> wardrobe) {
@@ -253,8 +254,24 @@ public class OutfitService {
         return ctx.engine().evaluate(items, request);
     }
 
+    /** Maps a list of outfits, giving cards in the same list distinct titles where possible. */
+    List<OutfitDto> toDtos(List<OutfitEvaluation> evaluations, Context ctx) {
+        Set<String> usedTitles = new HashSet<>();
+        List<OutfitDto> result = new ArrayList<>();
+        for (OutfitEvaluation e : evaluations) {
+            OutfitDto dto = toDto(e, ctx, usedTitles);
+            usedTitles.add(dto.title());
+            result.add(dto);
+        }
+        return result;
+    }
+
     OutfitDto toDto(OutfitEvaluation e, Context ctx) {
-        OutfitStory story = explainer.explain(e);
+        return toDto(e, ctx, Set.of());
+    }
+
+    private OutfitDto toDto(OutfitEvaluation e, Context ctx, Set<String> usedTitles) {
+        OutfitStory story = explainer.explain(e, usedTitles);
         List<ScorePart> breakdown = List.of(
                 new ScorePart("COLOR", "Renk uyumu", 40, pct(e.color().score())),
                 new ScorePart("CATEGORY", "Parça uyumu", 25, pct(e.compatibility().score())),
