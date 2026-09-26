@@ -1,7 +1,7 @@
 # RYVENCA API (v1)
 
 Base path: `/api`. JSON everywhere except image upload (multipart).
-All endpoints except `/api/auth/**`, `/api/meta` and `/media/**` require
+All endpoints except `/api/auth/**`, `/api/meta`, `/api/config`, `POST /api/account-deletion-requests` and `/media/**` require
 `Authorization: Bearer <token>`.
 
 Error body (any 4xx/5xx):
@@ -11,7 +11,7 @@ Error body (any 4xx/5xx):
 ```
 
 Error codes: `VALIDATION_ERROR`, `UNAUTHORIZED`, `FORBIDDEN`, `NOT_FOUND`, `CONFLICT`,
-`INVALID_IMAGE`, `PAYLOAD_TOO_LARGE`, `INTERNAL_ERROR`. `message` is always user-presentable, in the request language (see Languages).
+`INVALID_IMAGE`, `PAYLOAD_TOO_LARGE`, `ACCOUNT_DISABLED`, `LOCAL_AUTH_DISABLED`, `AUTH_UNAVAILABLE`, `INTERNAL_ERROR`. `message` is always user-presentable, in the request language (see Languages).
 
 ## Languages (i18n)
 
@@ -89,7 +89,117 @@ User = {
 
 `GET /api/me` → `User`
 `PUT /api/me` `{ "displayName"?, "wardrobeType"?, "stylePreferences"?, "onboardingCompleted"?, "language"? }` → `User` (only non-null fields are applied)
-`DELETE /api/me` → `204` (deletes account, garments, images, saved outfits)
+`DELETE /api/me` → `204` (deletes account, garments, images, saved outfits — see Account deletion)
+
+## Sign-in with Firebase (Apple, Google, e-mail)
+
+Clients sign in with the Firebase SDK (Sign in with Apple, Google, e-mail + password), then exchange the
+Firebase ID token for a RYVENCA token. Every other endpoint keeps using the RYVENCA JWT as before.
+
+`POST /api/auth/firebase` `{ "idToken": "<Firebase ID token>", "displayName": "Ayşe" | null }` → `200 AuthResponse`
+
+- The server verifies the token with the Firebase Admin SDK, then finds the user by Firebase UID, else by
+  (verified) e-mail (accounts are linked), else creates one. `displayName` is only used when creating a
+  user and the token carries no name (Apple returns the name to the client only on the first sign-in).
+- `401 UNAUTHORIZED` invalid/expired token · `403 ACCOUNT_DISABLED` · `503 AUTH_UNAVAILABLE` when the
+  server has no Firebase credentials configured.
+- E-mail verification mails and password reset mails are sent by Firebase (client SDK).
+
+Local e-mail/password (`/api/auth/register`, `/api/auth/login`) remains for development and for setups
+without Firebase; it is only available while `config.auth.local` is `true` (else `403 LOCAL_AUTH_DISABLED`).
+
+`User` additionally contains:
+
+```json
+{ "role": "USER" | "ADMIN", "authProvider": "APPLE" | "GOOGLE" | "PASSWORD" | "LOCAL", "emailVerified": true }
+```
+
+Any authenticated request of a disabled account → `403 ACCOUNT_DISABLED` (clients sign the user out and
+show the message).
+
+## Public app configuration
+
+`GET /api/config` (public, no auth; values are managed in the admin panel)
+
+```json
+{
+  "auth": { "firebase": true, "local": false,
+            "providers": { "apple": true, "google": true, "email": true } },
+  "firebaseWeb": { "apiKey": "…", "authDomain": "…", "projectId": "…", "appId": "…",
+                   "messagingSenderId": "…", "storageBucket": "…" } | null,
+  "links": { "privacyPolicy": "https://…" | null, "terms": "https://…" | null, "support": "https://…" | null,
+             "supportEmail": "help@…" | null, "accountDeletion": "https://…" | null,
+             "appStore": "https://…" | null, "playStore": "https://…" | null },
+  "maintenance": { "enabled": false, "message": "…" | null },
+  "minVersion": { "ios": "1.0.0" | null, "android": "1.0.0" | null }
+}
+```
+
+- `auth.firebase`: the server can verify Firebase tokens. Show only the providers that are `true`
+  (and Apple only where supported). `auth.local`: the legacy e-mail/password form may be shown.
+- `firebaseWeb`: the web app initializes Firebase with this at runtime (so the web keys can be entered in
+  the admin panel); `null` = not configured (web falls back to `VITE_FIREBASE_*` env, then to local auth).
+- Clients show privacy policy / terms / support links where present (required for store review).
+- `maintenance.enabled` → clients show a blocking maintenance screen with `message`.
+- `minVersion.<platform>` → mobile shows a blocking "update the app" screen with the store link when the
+  installed version is lower.
+
+## Account deletion
+
+1. **In the app / signed in on the web** — `DELETE /api/me` `{ "reason": "…" | null }` (body optional) → `204`.
+   Deletes the account, garments, photos, saved outfits and the Firebase Authentication user, immediately.
+   Before calling it, clients that used Sign in with Apple revoke the Apple token (Firebase
+   `revokeAccessToken` / RN Firebase `auth().revokeToken(authorizationCode)` after an Apple re-auth), and
+   Google users are signed out/revoked from Google Sign-In.
+2. **Without access to the account** (lost login; linked from the public deletion page, required by Google
+   Play) — `POST /api/account-deletion-requests` (public) `{ "email": "…", "message": "…" | null }` →
+   `202 { "reference": "DR-7K2Q9M" }`. Always 202 (no account enumeration); a pending request for the same
+   e-mail returns the same reference. Requests are reviewed and approved in the admin panel.
+
+Every completed deletion is written to an anonymized deletion log (hashed e-mail, provider, method, date).
+
+## Admin API (role `ADMIN`)
+
+All under `/api/admin/**`, `403 FORBIDDEN` for non-admins. Admins are bootstrapped from the
+`RYVENCA_ADMIN_EMAILS` environment variable (comma separated; applied at sign-in) and can promote others.
+
+- `GET /api/admin/stats` → `{ "users": 120, "newUsers7d": 14, "garments": 1830, "savedOutfits": 412,
+  "pendingDeletionRequests": 2, "deletionsLast30d": 3 }`
+- `GET /api/admin/settings` → `AdminSettings`; `PUT /api/admin/settings` (partial, only non-null fields) → `AdminSettings`
+
+  ```json
+  AdminSettings = {
+    "providers": { "apple": true, "google": true, "email": true },
+    "firebaseWeb": { "apiKey": "", "authDomain": "", "projectId": "", "appId": "", "messagingSenderId": "", "storageBucket": "" },
+    "links": { …same keys as config.links… },
+    "maintenance": { "enabled": false, "message": null },
+    "minVersion": { "ios": null, "android": null },
+    "status": { "firebaseAdmin": true, "firebaseProjectId": "ryvenca-prod" | null, "localAuth": false }
+  }
+  ```
+  `status` is read-only (what the server itself has configured). URLs must be http(s), `supportEmail` an
+  e-mail, versions `major.minor.patch`; empty string clears a value.
+- `GET /api/admin/users?q=&page=0&size=20` → `{ "items": [AdminUser], "total": 120, "page": 0, "size": 20 }`
+  `AdminUser = { "id", "email", "displayName", "role", "authProvider", "disabled", "language",
+  "garmentCount", "savedOutfitCount", "createdAt" }` (newest first; `q` matches e-mail or name)
+- `PATCH /api/admin/users/{id}` `{ "role"?: "ADMIN"|"USER", "disabled"?: true }` → `AdminUser`
+  (admins cannot demote/disable themselves)
+- `DELETE /api/admin/users/{id}` → `204` (full deletion as above, logged with method `ADMIN`)
+- `GET /api/admin/deletion-requests?status=PENDING|COMPLETED|REJECTED` →
+  `[{ "id", "reference", "email", "message", "language", "status", "matchedUserId": 12 | null,
+     "createdAt", "resolvedAt", "resolvedBy", "note" }]` (newest first; `matchedUserId` = account with that e-mail)
+- `POST /api/admin/deletion-requests/{id}/approve` `{ "note"?: "…" }` → request (deletes the matched account
+  if any; status `COMPLETED`)
+- `POST /api/admin/deletion-requests/{id}/reject` `{ "note": "…" }` → request (status `REJECTED`)
+- `GET /api/admin/deletion-log?limit=100` → `[{ "method": "IN_APP"|"WEB"|"REQUEST"|"ADMIN", "authProvider",
+  "reason", "createdAt" }]`
+- Palettes (the curated color combinations the outfit engine uses; built-in ones can be edited/disabled,
+  custom ones added/deleted):
+  - `GET /api/admin/palettes` → `[{ "id": "P001", "colors": ["#EFE6D2", …], "names": { "en": "Earth Tones", "tr": "Toprak Tonları" }, "enabled": true, "builtIn": true }]`
+    (`names` holds admin-entered names; built-in palettes fall back to the translated names in the server's
+    message files, which are included here for all 16 languages)
+  - `POST /api/admin/palettes` `{ "colors": [2–5 hex], "names": { "en": "…", …any languages }, "enabled": true }` → palette (`names.en` required)
+  - `PUT /api/admin/palettes/{id}` same body → palette · `DELETE /api/admin/palettes/{id}` → `204` (custom only)
 
 ## Images & color detection
 
