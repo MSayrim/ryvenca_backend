@@ -271,6 +271,16 @@ class ApiFlowIntegrationTest {
     }
 
     @Test
+    void firebaseSignInIsUnavailableWithoutServerCredentials() throws Exception {
+        mvc.perform(post("/api/auth/firebase").contentType(MediaType.APPLICATION_JSON).content("{\"idToken\":\"x\"}"))
+                .andExpect(status().isServiceUnavailable())
+                .andExpect(jsonPath("$.error").value("AUTH_UNAVAILABLE"));
+        mvc.perform(get("/api/config"))
+                .andExpect(jsonPath("$.auth.firebase").value(false))
+                .andExpect(jsonPath("$.auth.local").value(true));
+    }
+
+    @Test
     void rejectsNonImageUploads() throws Exception {
         String token = register("zeynep@example.com", "Zeynep");
         MockMultipartFile file = new MockMultipartFile("file", "x.txt", "text/plain", "hello".getBytes());

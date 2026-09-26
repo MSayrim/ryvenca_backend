@@ -37,6 +37,55 @@ RYVENCA_JWT_SECRET=$(openssl rand -base64 48) docker compose up --build
 | `RYVENCA_PUBLIC_BASE_URL` | derived from request | Absolute base for media URLs behind a proxy/CDN |
 | `PORT` | `8080` | HTTP port |
 
+## Sign-in (Firebase: Apple, Google, e-mail)
+
+Clients sign in with the Firebase SDK and exchange the Firebase ID token at `POST /api/auth/firebase` for
+a RYVENCA JWT. The server verifies the token with the Firebase Admin SDK, finds the account by Firebase
+UID, links it by verified e-mail, or creates it. The only thing the server needs is the service account file:
+
+```
+config/firebase-service-account.json      # or RYVENCA_FIREBASE_CREDENTIALS=/path/file.json
+```
+
+See [`config/README.md`](config/README.md). Without it, `/api/config` reports `auth.firebase: false` and
+only local e-mail/password accounts work. You can switch those off with `RYVENCA_LOCAL_AUTH=false` once
+Firebase is live.
+
+| Variable | Default | Description |
+|---|---|---|
+| `RYVENCA_FIREBASE_CREDENTIALS` | `./config/firebase-service-account.json` | Firebase service account JSON |
+| `RYVENCA_FIREBASE_PROJECT_ID` | from the file | Override the Firebase project id |
+| `RYVENCA_LOCAL_AUTH` | `true` | Legacy local e-mail/password accounts (development) |
+| `RYVENCA_ADMIN_EMAILS` | – | Comma-separated e-mails that become admins when they sign in |
+
+## Admin panel API
+
+Admins (`role: ADMIN`) manage the following through `/api/admin/**`; see `docs/API.md`:
+
+- **Runtime settings:** sign-in providers, Firebase web config, privacy/terms/support/deletion/store links,
+  maintenance mode and minimum app versions. Clients read them publicly from `GET /api/config`.
+- **Users:** search, promote/demote, disable, delete.
+- **Deletion requests** and the **anonymized deletion log**.
+- **Color palettes:** the outfit engine's dataset. The 45 built-in palettes are seeded into the `palettes`
+  table on startup. Admins can rename (per language), recolor or disable them, and add their own.
+  Changes apply immediately.
+
+The first admin comes from `RYVENCA_ADMIN_EMAILS`. That admin can then promote others in the panel.
+
+## Account deletion (App Store 5.1.1(v) / Google Play)
+
+- **In the app or on the website:** `DELETE /api/me` removes the account immediately:
+  - photos, garments and saved outfits;
+  - the account row;
+  - the Firebase Authentication user.
+
+  Apple sign-in tokens are revoked by the client before the call.
+- **Without access to the account:** the public deletion page posts
+  `POST /api/account-deletion-requests` (rate limited, no account enumeration). An admin approves or
+  rejects the request in the panel.
+- Each completed deletion leaves only an anonymized entry: salted e-mail hash, provider, method
+  (`IN_APP`, `WEB`, `REQUEST`, `ADMIN`), optional reason, and date.
+
 ## Languages (i18n)
 
 The API speaks 16 languages: Turkish (product default) plus the 15 most spoken languages: `tr en zh hi es
@@ -67,7 +116,12 @@ tests.
 
 ```
 com.ryvenca
-├── auth        register/login, JWT issuing (Nimbus, HS256)
+├── auth        Firebase sign-in exchange, local register/login, JWT issuing (Nimbus, HS256)
+├── firebase    Firebase Admin SDK gateway (token verification, user deletion)
+├── settings    admin-managed runtime settings, public /api/config
+├── admin       admin panel API (stats, users, settings, deletion requests, palettes)
+├── deletion    account deletion, deletion requests, anonymized deletion log
+├── palette     database-backed palette dataset (seeded, admin-editable)
 ├── user        profile, style preferences, onboarding, account deletion
 ├── i18n        supported languages, Accept-Language resolution, Localizer (templates + grammar)
 ├── catalog     domain enums: Category, Subcategory (formality, fabric feel, warmth, default
@@ -140,5 +194,7 @@ after 24 hours. Media file names are random UUIDs served with long-lived cache h
   pairings, similar outfits, Turkish explanations
 - `EngineBench` (opt-in, `./mvnw test -Dtest=EngineBench -Dbench=true`): timings on a 200-piece
   wardrobe (≈ 250 ms for suggestions once warm)
+- `AccountAndAdminIntegrationTest`: Firebase sign-in with a fake verifier (creation, linking, disabled
+  accounts), admin settings/users/palettes, in-app deletion, reviewed deletion requests, rate limiting
 - `ApiFlowIntegrationTest`: end-to-end over MockMvc (auth, upload, detection, manual override,
   suggestions, save, pairings, home, isolation between users, account deletion)

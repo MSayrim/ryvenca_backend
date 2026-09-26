@@ -30,8 +30,26 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
-    @Column(name = "password_hash", nullable = false)
+    /** Only for local (non-Firebase) accounts. */
+    @Column(name = "password_hash")
     private String passwordHash;
+
+    @Column(name = "firebase_uid", unique = true)
+    private String firebaseUid;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "auth_provider", nullable = false)
+    private AuthProvider authProvider = AuthProvider.LOCAL;
+
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private Role role = Role.USER;
+
+    @Column(nullable = false)
+    private boolean disabled;
 
     @Column(name = "display_name", nullable = false)
     private String displayName;
@@ -65,6 +83,16 @@ public class User {
         this.displayName = displayName;
     }
 
+    /** An account created from a verified Firebase sign-in. */
+    public static User fromFirebase(String email, String firebaseUid, AuthProvider provider, boolean emailVerified,
+                                    String displayName) {
+        User user = new User(email, null, displayName);
+        user.firebaseUid = firebaseUid;
+        user.authProvider = provider;
+        user.emailVerified = emailVerified;
+        return user;
+    }
+
     @PrePersist
     void onCreate() {
         createdAt = Instant.now();
@@ -86,6 +114,50 @@ public class User {
 
     public String getPasswordHash() {
         return passwordHash;
+    }
+
+    public String getFirebaseUid() {
+        return firebaseUid;
+    }
+
+    public void setFirebaseUid(String firebaseUid) {
+        this.firebaseUid = firebaseUid;
+    }
+
+    public AuthProvider getAuthProvider() {
+        return authProvider;
+    }
+
+    public void setAuthProvider(AuthProvider authProvider) {
+        this.authProvider = authProvider;
+    }
+
+    public boolean isEmailVerified() {
+        return emailVerified;
+    }
+
+    public void setEmailVerified(boolean emailVerified) {
+        this.emailVerified = emailVerified;
+    }
+
+    public Role getRole() {
+        return role;
+    }
+
+    public void setRole(Role role) {
+        this.role = role;
+    }
+
+    public boolean isAdmin() {
+        return role == Role.ADMIN;
+    }
+
+    public boolean isDisabled() {
+        return disabled;
+    }
+
+    public void setDisabled(boolean disabled) {
+        this.disabled = disabled;
     }
 
     public String getDisplayName() {

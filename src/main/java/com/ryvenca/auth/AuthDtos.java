@@ -27,6 +27,11 @@ public final class AuthDtos {
             @NotBlank(message = "{validation.password.required}") String password) {
     }
 
+    public record FirebaseLoginRequest(
+            @NotBlank(message = "{validation.idToken.required}") @Size(max = 8192) String idToken,
+            @Size(max = 80, message = "{validation.name.size}") String displayName) {
+    }
+
     public record AuthResponse(String token, Instant expiresAt, UserDto user) {
     }
 }

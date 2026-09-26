@@ -8,24 +8,48 @@ import org.springframework.transaction.annotation.Transactional;
 import com.ryvenca.common.ApiException;
 import com.ryvenca.common.ErrorCode;
 import com.ryvenca.i18n.Language;
-import com.ryvenca.image.ImageService;
+import com.ryvenca.deletion.AccountDeletionService;
+import com.ryvenca.deletion.DeletionMethod;
 
 @Service
 public class UserService {
 
     private final UserRepository users;
-    private final ImageService images;
+    private final AccountDeletionService deletion;
 
-    public UserService(UserRepository users, ImageService images) {
+    public UserService(UserRepository users, AccountDeletionService deletion) {
         this.users = users;
-        this.images = images;
+        this.deletion = deletion;
     }
 
-    /** Resolves the authenticated user; a token of a deleted account is treated as unauthenticated. */
+    /**
+     * Resolves the authenticated user; a token of a deleted account is treated as unauthenticated and a
+     * disabled account is refused.
+     */
     @Transactional(readOnly = true)
     public User require(long userId) {
+        User user = requireEvenIfDisabled(userId);
+        if (user.isDisabled()) {
+            throw new ApiException(ErrorCode.ACCOUNT_DISABLED, "error.auth.accountDisabled");
+        }
+        return user;
+    }
+
+    /** Like {@link #require} but also returns disabled accounts (they may still delete themselves). */
+    @Transactional(readOnly = true)
+    public User requireEvenIfDisabled(long userId) {
         return users.findById(userId)
                 .orElseThrow(() -> new ApiException(ErrorCode.UNAUTHORIZED, "error.auth.sessionExpired"));
+    }
+
+    /** Resolves an admin; everyone else gets 403. */
+    @Transactional(readOnly = true)
+    public User requireAdmin(long userId) {
+        User user = require(userId);
+        if (!user.isAdmin()) {
+            throw new ApiException(ErrorCode.FORBIDDEN, "error.forbidden");
+        }
+        return user;
     }
 
     @Transactional
@@ -57,11 +81,9 @@ public class UserService {
         return user;
     }
 
-    /** Deletes the account and everything that belongs to it (DB rows cascade, files are removed here). */
+    /** Self-service deletion (app or website); also allowed for disabled accounts. */
     @Transactional
-    public void delete(long userId) {
-        User user = require(userId);
-        images.deleteAllFilesOf(user.getId());
-        users.delete(user);
+    public void delete(long userId, DeletionMethod method, String reason) {
+        deletion.delete(requireEvenIfDisabled(userId), method, reason);
     }
 }

@@ -20,7 +20,7 @@ import com.ryvenca.catalog.Occasion;
 import com.ryvenca.catalog.Season;
 import com.ryvenca.color.ColorName;
 import com.ryvenca.color.Lab;
-import com.ryvenca.color.PaletteLibrary;
+import com.ryvenca.palette.PaletteService;
 import com.ryvenca.common.ApiException;
 import com.ryvenca.garment.Garment;
 import com.ryvenca.garment.GarmentMapper;
@@ -62,12 +62,12 @@ public class OutfitService {
     private final GarmentService garments;
     private final GarmentMapper mapper;
     private final SavedOutfitRepository savedOutfits;
-    private final PaletteLibrary palettes;
+    private final PaletteService palettes;
     private final Texts texts;
     private final Clock clock;
 
     public OutfitService(UserService users, GarmentService garments, GarmentMapper mapper,
-                         SavedOutfitRepository savedOutfits, PaletteLibrary palettes, Texts texts, Clock clock) {
+                         SavedOutfitRepository savedOutfits, PaletteService palettes, Texts texts, Clock clock) {
         this.users = users;
         this.garments = garments;
         this.mapper = mapper;
@@ -93,7 +93,7 @@ public class OutfitService {
         List<WardrobeItem> items = byId.values().stream().map(OutfitService::toItem).toList();
         Map<String, Long> saved = new HashMap<>();
         savedOutfits.findByOwnerIdOrderByCreatedAtDesc(userId).forEach(s -> saved.put(s.getOutfitKey(), s.getId()));
-        return new Context(user, byId, new OutfitEngine(items, palettes), saved);
+        return new Context(user, byId, new OutfitEngine(items, palettes.library()), saved);
     }
 
     public Season currentSeason() {
@@ -274,7 +274,7 @@ public class OutfitService {
 
     private OutfitDto toDto(OutfitEvaluation e, Context ctx, Set<String> usedTitles) {
         Localizer l = texts.current();
-        OutfitStory story = new OutfitExplainer(l).explain(e, usedTitles);
+        OutfitStory story = new OutfitExplainer(l, id -> palettes.displayName(id, l)).explain(e, usedTitles);
         List<ScorePart> breakdown = List.of(
                 new ScorePart("COLOR", l.t("breakdown.COLOR"), 40, pct(e.color().score())),
                 new ScorePart("CATEGORY", l.t("breakdown.CATEGORY"), 25, pct(e.compatibility().score())),

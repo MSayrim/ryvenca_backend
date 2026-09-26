@@ -3,6 +3,7 @@ package com.ryvenca.outfit.engine;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Function;
 
 import com.ryvenca.catalog.Occasion;
 import com.ryvenca.catalog.Season;
@@ -19,9 +20,16 @@ import com.ryvenca.outfit.engine.OutfitStory.Reason;
 public final class OutfitExplainer {
 
     private final Localizer l;
+    private final Function<String, String> paletteName;
 
     public OutfitExplainer(Localizer localizer) {
+        this(localizer, id -> localizer.t("palette." + id));
+    }
+
+    /** @param paletteName localized display name of a palette id (admin-edited names win over built-in ones) */
+    public OutfitExplainer(Localizer localizer, Function<String, String> paletteName) {
         this.l = localizer;
+        this.paletteName = paletteName;
     }
 
     public OutfitStory explain(OutfitEvaluation e) {
@@ -33,7 +41,7 @@ public final class OutfitExplainer {
      *                   possible so two cards next to each other do not carry the same name.
      */
     public OutfitStory explain(OutfitEvaluation e, Set<String> usedTitles) {
-        String paletteName = e.color().paletteMatched() ? l.t("palette." + e.color().paletteId()) : null;
+        String paletteName = e.color().paletteMatched() ? this.paletteName.apply(e.color().paletteId()) : null;
         List<Reason> reasons = new ArrayList<>();
         reasons.add(new Reason("COLOR", l.t("reason.COLOR"), colorText(e.color(), paletteName)));
         reasons.add(new Reason("TEXTURE", l.t("reason.TEXTURE"), textureText(e)));

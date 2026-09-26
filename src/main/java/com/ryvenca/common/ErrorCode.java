@@ -10,6 +10,10 @@ public enum ErrorCode {
     NOT_FOUND(HttpStatus.NOT_FOUND),
     CONFLICT(HttpStatus.CONFLICT),
     PAYLOAD_TOO_LARGE(HttpStatus.CONTENT_TOO_LARGE),
+    ACCOUNT_DISABLED(HttpStatus.FORBIDDEN),
+    LOCAL_AUTH_DISABLED(HttpStatus.FORBIDDEN),
+    TOO_MANY_REQUESTS(HttpStatus.TOO_MANY_REQUESTS),
+    AUTH_UNAVAILABLE(HttpStatus.SERVICE_UNAVAILABLE),
     INTERNAL_ERROR(HttpStatus.INTERNAL_SERVER_ERROR);
 
     private final HttpStatus status;

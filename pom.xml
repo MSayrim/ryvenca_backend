@@ -20,6 +20,7 @@
         <java.version>21</java.version>
         <twelvemonkeys.version>3.15.2</twelvemonkeys.version>
         <metadata-extractor.version>2.21.0</metadata-extractor.version>
+        <firebase-admin.version>9.11.0</firebase-admin.version>
     </properties>
 
     <dependencies>
@@ -81,6 +82,13 @@
             <groupId>com.drewnoakes</groupId>
             <artifactId>metadata-extractor</artifactId>
             <version>${metadata-extractor.version}</version>
+        </dependency>
+
+        <!-- Verifies Firebase ID tokens (Apple / Google / e-mail sign-in) and deletes Firebase users -->
+        <dependency>
+            <groupId>com.google.firebase</groupId>
+            <artifactId>firebase-admin</artifactId>
+            <version>${firebase-admin.version}</version>
         </dependency>
 
         <dependency>

@@ -48,3 +48,14 @@ ryvenca:
     # Absolute base used for media URLs (e.g. https://api.ryvenca.com). Empty = derived from the request.
     public-base-url: ${RYVENCA_PUBLIC_BASE_URL:}
     draft-retention: 24h
+  firebase:
+    # Service account JSON from Firebase console → Project settings → Service accounts → Generate new private key.
+    credentials-file: ${RYVENCA_FIREBASE_CREDENTIALS:./config/firebase-service-account.json}
+    # Optional; read from the service account file when empty.
+    project-id: ${RYVENCA_FIREBASE_PROJECT_ID:}
+  auth:
+    # Legacy e-mail/password accounts stored by this server (development, or setups without Firebase).
+    local-enabled: ${RYVENCA_LOCAL_AUTH:true}
+  admin:
+    # Comma separated e-mails that get the admin role when they sign in.
+    emails: ${RYVENCA_ADMIN_EMAILS:}

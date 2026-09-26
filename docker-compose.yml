@@ -25,10 +25,14 @@ services:
       RYVENCA_JWT_SECRET: ${RYVENCA_JWT_SECRET:?set RYVENCA_JWT_SECRET (at least 32 characters)}
       RYVENCA_CORS_ORIGINS: ${RYVENCA_CORS_ORIGINS:-http://localhost:5173}
       RYVENCA_PUBLIC_BASE_URL: ${RYVENCA_PUBLIC_BASE_URL:-}
+      RYVENCA_FIREBASE_CREDENTIALS: /app/config/firebase-service-account.json
+      RYVENCA_ADMIN_EMAILS: ${RYVENCA_ADMIN_EMAILS:-}
+      RYVENCA_LOCAL_AUTH: ${RYVENCA_LOCAL_AUTH:-false}
     ports:
       - "8080:8080"
     volumes:
       - media:/data/media
+      - ./config:/app/config:ro
 
 volumes:
   db-data:

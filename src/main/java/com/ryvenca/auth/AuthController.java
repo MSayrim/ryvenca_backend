@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.ryvenca.auth.AuthDtos.AuthResponse;
+import com.ryvenca.auth.AuthDtos.FirebaseLoginRequest;
 import com.ryvenca.auth.AuthDtos.LoginRequest;
 import com.ryvenca.auth.AuthDtos.RegisterRequest;
 
@@ -32,5 +33,11 @@ public class AuthController {
     @PostMapping("/login")
     public AuthResponse login(@Valid @RequestBody LoginRequest request) {
         return authService.login(request);
+    }
+
+    /** Apple / Google / e-mail sign-in through Firebase. */
+    @PostMapping("/firebase")
+    public AuthResponse firebase(@Valid @RequestBody FirebaseLoginRequest request) {
+        return authService.firebaseLogin(request);
     }
 }

@@ -53,8 +53,10 @@ public class SecurityConfig {
                 .sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login").permitAll()
-                        .requestMatchers(HttpMethod.GET, "/api/meta", "/media/**", "/actuator/health/**", "/actuator/info")
+                        .requestMatchers(HttpMethod.POST, "/api/auth/register", "/api/auth/login", "/api/auth/firebase",
+                                "/api/account-deletion-requests").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/api/meta", "/api/config", "/media/**", "/actuator/health/**",
+                                "/actuator/info")
                         .permitAll()
                         .requestMatchers("/error").permitAll()
                         .anyRequest().authenticated())
@@ -97,8 +99,8 @@ public class SecurityConfig {
     CorsConfigurationSource corsConfigurationSource(RyvencaProperties properties) {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOriginPatterns(properties.cors().allowedOrigins());
-        config.setAllowedMethods(List.of("GET", "POST", "PUT", "DELETE", "OPTIONS"));
-        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept-Language"));
+        config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
+        config.setAllowedHeaders(List.of("Authorization", "Content-Type", "Accept-Language", "X-Client"));
         config.setMaxAge(3600L);
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);

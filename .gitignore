@@ -6,3 +6,7 @@ data/
 .vscode/
 .DS_Store
 .env
+
+# Secrets (see config/README.md)
+config/*
+!config/README.md
