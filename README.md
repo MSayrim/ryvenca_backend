@@ -11,6 +11,8 @@ scored, explained outfits using only pieces the user already owns.
 - **API contract:** [`docs/API.md`](docs/API.md). The web (`ryvenca_web`) and mobile (`ryvenca_mobile`)
   apps are built against it.
 
+> **Ürün sahibi kurulum listesi (Firebase, Apple, admin paneli, mağazalar):** [`docs/KURULUM.md`](docs/KURULUM.md)
+
 ## Quick start
 
 ```bash
