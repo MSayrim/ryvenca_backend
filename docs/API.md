@@ -147,6 +147,8 @@ show the message).
 ## Account deletion
 
 1. **In the app / signed in on the web** — `DELETE /api/me` `{ "reason": "…" | null }` (body optional) → `204`.
+   The mobile app sends `X-Client: mobile/<app version>` (on every request) so the deletion is logged as
+   `IN_APP`; without the header it is logged as `WEB`.
    Deletes the account, garments, photos, saved outfits and the Firebase Authentication user, immediately.
    Before calling it, clients that used Sign in with Apple revoke the Apple token (Firebase
    `revokeAccessToken` / RN Firebase `auth().revokeToken(authorizationCode)` after an Apple re-auth), and
